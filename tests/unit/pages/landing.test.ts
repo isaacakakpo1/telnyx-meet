@@ -1,11 +1,35 @@
+// @vitest-environment happy-dom
 import { mount } from '@vue/test-utils';
+import { defineComponent } from 'vue';
+import { parse } from 'vue/compiler-sfc';
 import { describe, expect, it } from 'vitest';
-import Index from '../../../pages/index.vue';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
-// The landing page is mounted standalone: the auto-imported Nuxt context
-// components (AppHeader via i route component registration, NuxtLink) are
-// replaced by lightweight stubs so the test only asserts on the landing
-// copy and the btn-select-room link behavior.
+// Vitest's bundler pipeline does not have @vitejs/plugin-vue configured, so
+// the landing page cannot be imported as a .vue module. The test reads the
+// SFC from disk and parses it with vue/compiler-sfc (already shipped with
+// vue), then mounts a component that reuses the real template. The Nuxt
+// auto-imports (AppHeader, NuxtLink) are replaced by lightweight stubs so
+// the assertions only cover the landing copy and the btn-select-room link.
+// The happy-dom environment is requested per-file so the mount has a real
+// document/Element to render into without changing the global vitest config.
+
+const here = dirname(fileURLToPath(import.meta.url));
+const landingPath = resolve(here, '../../../pages/index.vue');
+const landingSource = readFileSync(landingPath, 'utf-8');
+const { descriptor, errors: parseErrors } = parse(landingSource);
+if (parseErrors.length) {
+  throw new Error(
+    `Failed to parse ${landingPath}: ${parseErrors.map((e) => e.message).join(', ')}`
+  );
+}
+const landingTemplate = descriptor.template?.content;
+if (!landingTemplate) {
+  throw new Error(`No <template> block found in ${landingPath}`);
+}
+
 const AppHeaderStub = { name: 'AppHeader', template: '<i />' };
 const NuxtLinkStub = {
   name: 'NuxtLink',
@@ -13,8 +37,14 @@ const NuxtLinkStub = {
   props: ['to'],
 };
 
+const LandingPage = defineComponent({
+  name: 'LandingPage',
+  components: { AppHeader: AppHeaderStub, NuxtLink: NuxtLinkStub },
+  template: landingTemplate,
+});
+
 const mountLanding = () =>
-  mount(Index, {
+  mount(LandingPage, {
     global: {
       stubs: {
         AppHeader: AppHeaderStub,
