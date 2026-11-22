@@ -1,6 +1,5 @@
 <template>
   <main class="error-page">
-    <AppHeader />
     <p class="error-page__title">Something went wrong</p>
   </main>
 </template>
