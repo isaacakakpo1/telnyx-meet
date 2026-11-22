@@ -1,0 +1,148 @@
+{
+  "checks": [
+    {
+      "command_or_artifact": "static architecture scan and dependency manifest",
+      "gate_id": "vue-architecture",
+      "implementation_work_packages": [
+        "wp-shell",
+        "wp-meet-state"
+      ],
+      "kind": "architecture",
+      "proves": "Nuxt 3 and Vue 3 Composition API replace the production Next.js and React runtime",
+      "required_after_integration": true
+    },
+    {
+      "command_or_artifact": "clean-checkout install, lint, type-check, test, and build receipts",
+      "gate_id": "clean-build-and-static-quality",
+      "implementation_work_packages": [
+        "wp-shell"
+      ],
+      "kind": "build",
+      "proves": "A clean checkout installs reproducibly and passes build, type-check, and lint",
+      "required_after_integration": true
+    },
+    {
+      "command_or_artifact": "credential scan and server-boundary tests",
+      "gate_id": "server-secret-boundary",
+      "implementation_work_packages": [
+        "wp-server-api",
+        "wp-chat-invite"
+      ],
+      "kind": "security",
+      "proves": "Telnyx credentials stay server-side and all server routes validate and map upstream behavior",
+      "required_after_integration": true
+    },
+    {
+      "command_or_artifact": "typed adapter contract tests with deterministic fakes",
+      "gate_id": "video-sdk-contract",
+      "implementation_work_packages": [
+        "wp-sdk-adapter"
+      ],
+      "kind": "contract",
+      "proves": "The Telnyx Video SDK boundary is typed, testable, lifecycle-safe, and behaviorally complete",
+      "required_after_integration": true
+    },
+    {
+      "command_or_artifact": "component and browser workflow regression receipts",
+      "gate_id": "meeting-workflow-regression",
+      "implementation_work_packages": [
+        "wp-rooms-surface",
+        "wp-server-api",
+        "wp-sdk-adapter",
+        "wp-meet-state",
+        "wp-join-flow",
+        "wp-media-preview",
+        "wp-room-controls",
+        "wp-feeds-layout",
+        "wp-chat-invite",
+        "wp-metrics-diagnostics",
+        "wp-verification-docs"
+      ],
+      "kind": "integration",
+      "proves": "Room discovery, join, meeting, media, participant, chat, presentation, invite, diagnostics, metrics, and reconnect workflows remain supported",
+      "required_after_integration": true
+    },
+    {
+      "command_or_artifact": "unit, component, server-route, and browser test receipts",
+      "gate_id": "automated-tests",
+      "implementation_work_packages": [
+        "wp-join-flow",
+        "wp-metrics-diagnostics"
+      ],
+      "kind": "verification",
+      "proves": "Unit, component, server-route, and browser smoke suites pass without live Telnyx credentials",
+      "required_after_integration": true
+    },
+    {
+      "command_or_artifact": "reviewed desktop and narrow-viewport screenshot manifest",
+      "gate_id": "responsive-visual-evidence",
+      "implementation_work_packages": [
+        "wp-rooms-surface",
+        "wp-room-controls",
+        "wp-feeds-layout",
+        "wp-verification-docs"
+      ],
+      "kind": "visual",
+      "proves": "Representative desktop and narrow viewport screens are usable and visually reviewed",
+      "required_after_integration": true
+    },
+    {
+      "command_or_artifact": "listener, timer, stream, track, and object-URL cleanup tests",
+      "gate_id": "resource-cleanup",
+      "implementation_work_packages": [
+        "wp-sdk-adapter",
+        "wp-media-preview",
+        "wp-room-controls",
+        "wp-feeds-layout"
+      ],
+      "kind": "reliability",
+      "proves": "SDK listeners, timers, streams, tracks, and generated media resources are disposed deterministically",
+      "required_after_integration": true
+    },
+    {
+      "command_or_artifact": "credential scan and server-boundary tests",
+      "gate_id": "credential-hygiene",
+      "implementation_work_packages": [
+        "wp-verification-docs"
+      ],
+      "kind": "security",
+      "proves": "No credential-bearing local or generated files are tracked or emitted as evidence",
+      "required_after_integration": true
+    },
+    {
+      "command_or_artifact": "branch, remote, commit, and changed-path isolation receipts",
+      "gate_id": "branch-isolation",
+      "implementation_work_packages": [],
+      "kind": "delivery",
+      "proves": "Only the fork's vue-fastvm-benchmark branch is mutated",
+      "required_after_integration": true
+    },
+    {
+      "command_or_artifact": "architecture, parity, security, build, test, and migration documents",
+      "gate_id": "documentation",
+      "implementation_work_packages": [
+        "wp-verification-docs"
+      ],
+      "kind": "review",
+      "proves": "Architecture, parity, security, build, test, and migration documentation is complete",
+      "required_after_integration": true
+    }
+  ],
+  "coverage_of_frozen_gates": [
+    "vue-architecture",
+    "clean-build-and-static-quality",
+    "server-secret-boundary",
+    "video-sdk-contract",
+    "meeting-workflow-regression",
+    "automated-tests",
+    "responsive-visual-evidence",
+    "resource-cleanup",
+    "credential-hygiene",
+    "branch-isolation",
+    "documentation"
+  ],
+  "environmental_blocker_policy": "Record infrastructure failures separately from candidate failures; never convert one into the other.",
+  "live_credentials_required": false,
+  "schema_version": "1.0",
+  "source": "hive-deterministic-verification-inventory-v1"
+}
