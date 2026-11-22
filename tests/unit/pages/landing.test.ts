@@ -68,4 +68,9 @@ describe('landing page (pages/index.vue)', () => {
     expect(link.attributes('href')).toBe('/rooms');
     expect(link.text()).toBe('Join A Room');
   });
+
+  it('does not render its own AppHeader', () => {
+    const wrapper = mountLanding();
+    expect(wrapper.findComponent({ name: 'AppHeader' }).exists()).toBe(false);
+  });
 });
