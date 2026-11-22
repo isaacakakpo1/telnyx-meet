@@ -1,33 +1,37 @@
 {
+  "extends": "./.nuxt/tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
-    "target": "es5",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "strict": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
-    "sourceMap": true,
     "downlevelIteration": true,
-    "incremental": true
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true
   },
   "include": [
-    "next-env.d.ts",
+    ".nuxt/tsconfig.json",
+    "app.vue",
+    "nuxt.config.ts",
+    "vitest.config.ts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.vue"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dist",
+    "benchmark",
+    "next-env.d.ts",
+    "**/pages/**/*.tsx",
+    "**/pages/**/*.ts",
+    "**/components/**/*.tsx",
+    "**/components/**/*.ts"
   ]
 }
