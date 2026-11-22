@@ -1,7 +1,5 @@
 <template>
   <main class="landing">
-    <AppHeader />
-
     <div class="landing__body">
       <p class="landing__notice">This is a demo app for Telnyx Video SDK</p>
 
