@@ -1,0 +1,803 @@
+{
+  "assignment_id": "assignment-scout-vue-behavior-92482b23",
+  "base_commit": "928f71969030a6c0aa93c190d8edeab02efe0840",
+  "benchmark_id": "telnyx-meet-vue-fastvm-v1",
+  "candidate_id": "candidate-scout-vue-behavior-92482b23",
+  "chat": {
+    "behavior": "Chat messages are rendered with local messages labeled as Me and right-aligned, and sender messages labeled by username from the parsed sender context and left-aligned. Sending transmits the typed value as a text payload; an empty or whitespace-only value is not sent, and a successful send clears the input. The list auto-scrolls to the bottom when a new message arrives. The unread badge is shown while the chat is closed and a new remote message has arrived, and is cleared when the chat is opened, both via the same toggle and the panel close path. The chat button is only rendered when the local participant can receive messages. The panel is a draggable wrapper within bounds, and drag behavior in the migration can be left as a simple positioned panel or reimplemented, but the open/close and unread semantics must match.",
+    "evidence": [
+      "components/Chat.tsx",
+      "components/RoomControls/RoomControls.tsx",
+      "hooks/room.ts"
+    ],
+    "id": "beh-chat",
+    "title": "Chat panel: send text, render local versus sender, auto-scroll, unread badge"
+  },
+  "deterministic_fake_boundaries": {
+    "boundaries": [
+      {
+        "events": [
+          "state_changed",
+          "connected",
+          "disconnected",
+          "participant_joined",
+          "participant_leaving",
+          "participant_left",
+          "stream_published",
+          "stream_unpublished",
+          "track_enabled",
+          "track_disabled",
+          "track_censored",
+          "track_uncensored",
+          "audio_activity",
+          "subscription_started",
+          "subscription_reconfigured",
+          "subscription_ended",
+          "message_received",
+          "network_metrics_report"
+        ],
+        "evidence": [
+          "hooks/room.ts"
+        ],
+        "feasible": "telnyx-video-fake",
+        "what": "A fake of the video SDK module with a Room class that exposes on and off and connect and getState, a state object with status and a participants map and a streams map, and every event from the sourced 18-event surface scriptable for emission. The fake must track registered listeners so dispose cleanup is testable."
+      },
+      {
+        "evidence": [
+          "utils/userMedia.ts",
+          "utils/virtualBackground.ts",
+          "components/MediaPreview/index.tsx",
+          "components/MediaPreview/MediaControlBar.tsx",
+          "components/MediaControlBar.tsx"
+        ],
+        "feasible": "media-fake",
+        "what": "A fake navigator.mediaDevices with getUserMedia and enumerateDevices and getDisplayMedia, plus a fake MediaStreamTrack that records stop calls, enabling a NotAllowedError path and a deterministic end event for the sharing track."
+      },
+      {
+        "evidence": [
+          "pages/api/rooms/index.ts",
+          "pages/api/rooms/[roomId].ts",
+          "pages/api/client_token.ts",
+          "pages/api/refresh_client_token.ts",
+          "pages/api/dial_out.ts",
+          "pages/rooms/index.tsx",
+          "components/InviteParticipant.tsx"
+        ],
+        "feasible": "fetch-fake",
+        "what": "A deterministic fetch stub for the five routes to pin success, non-2xx with an upstream message body, exception path, and wrong-method 405 with the Allow header, so the token flow and dial-out and room-list flows are testable without a real upstream."
+      },
+      {
+        "evidence": [
+          "hooks/room.ts",
+          "components/InviteParticipant.tsx",
+          "components/WebRTCStats.tsx",
+          "components/VideoBitrate.tsx"
+        ],
+        "feasible": "timer-fake",
+        "what": "A virtual clock or fake timers to drive the 50-second token refresh cadence, the 5-second dominant speaker reset, the 30-second invite timeout, the 500ms stats poll, and the 1000ms bitrate poll."
+      },
+      {
+        "evidence": [
+          "utils/storage.ts"
+        ],
+        "feasible": "storage-fake",
+        "what": "An in-memory localStorage and sessionStorage backed double for the username, audio enabled, video enabled, and background type keys, so pre-join preference persistence and the chat badge persistence are deterministic."
+      }
+    ],
+    "id": "fakes",
+    "title": "Deterministic fake boundaries required to test without a live Telnyx call"
+  },
+  "diagnostics": {
+    "behavior": "When the diagnostics feature flag is on, a pre-join Diagnostics button runs the RTC diagnostics and shows the result in a native dialog. While running, the button is disabled and labeled as loading. In-meeting per-participant diagnostics are the WebRTC stats overlay and the bitrate readout, not the diagnostics button. The diagnostics button is present only before joining, not in the room.",
+    "evidence": [
+      "components/MediaPreview/index.tsx",
+      "components/WebRTCStats.tsx",
+      "components/VideoBitrate.tsx"
+    ],
+    "id": "beh-diagnostics",
+    "title": "Diagnostics: a pre-join button that opens camera and microphone diagnostics when the flag is on"
+  },
+  "feature_flags": {
+    "behavior": "Optional feature flags are read only from the room route query string and a flag is on only when its value is exactly the string true. Flags: audio control (toggles mixed-audio playback), dial-out (renders the invite panel), network metrics (drives network metrics reports and the monitor), simulcast (adds 1280-by-720 video constraints), virtual background (an alias flag present in the query mapping), diagnostics (pre-join diagnostics button), and auto reconnect (page-level retry). Any other query value (on, yes, 1, TRUE) is treated as off. This is a parity rule for the migration: the mapping is exact string match.",
+    "evidence": [
+      "pages/rooms/index.tsx"
+    ],
+    "id": "flags",
+    "source": "pages/rooms/index.tsx"
+  },
+  "in_call_workflow": {
+    "behavior": "Once connected, the self audio and video tracks are published as the self stream whenever they change, and the presentation stream is added when the user shares the screen and removed when the sharing track ends. A background token refresh interval posts /api/refresh_client_token at a cadence derived from a 50-second TTL with a 20-second lead time, and only while the state is connected. The dominant speaker id is reset by a 5-second timer. Leaving the room stops local and presentation tracks and calls disconnect, which triggers the disconnected handler.",
+    "evidence": [
+      "components/RoomControls/RoomControls.tsx",
+      "hooks/room.ts",
+      "pages/rooms/index.tsx",
+      "pages/api/refresh_client_token.ts"
+    ],
+    "id": "wf-in-call",
+    "title": "In-call: state-driven layout, self stream lifecycle, token refresh, and leave"
+  },
+  "instruction_compliance": {
+    "credential_hygiene": "Report references environment variable NAMES only (TELNYX_API_HOST, TELNYX_API_KEY, TELNYX_CALL_CONTROL_API_HOST, NEXT_PUBLIC_BUGSNAG_API_KEY). No secret values, no .env file contents, and no model or CI credentials appear in this document.",
+    "expected_write_set_observed": [
+      "benchmark/vue-fastvm-test/scouts/behavior.json"
+    ],
+    "migration_code_written": false,
+    "serialization": "Generated by a Python builder using the json module (json.dumps with sort_keys and indent) and validated with python -m json.tool before hand-off.",
+    "write_sets_confined_to_observed_write_set": true
+  },
+  "invitations": {
+    "behavior": "The invite panel is only rendered when the dial-out feature flag is on. Input is normalized to E.164 as the user types and displayed in international format. The send button is enabled only while the value matches the E.164 pattern with a length between 10 and 15 digits. On send, the app tracks the invite in an invited map keyed by the phone number, posts /api/dial_out with the room id, a context id and the phone number as username, and a 30-second timeout: if the invitee has joined by then (matched via the participant context username in the participant_joined handler) a connected toast is emitted, otherwise a no-answer toast. A failed dial-out response shows a request failed toast. Non-2xx dial-out responses are not surfaced as an error dialog, only via the invite tracker.",
+    "evidence": [
+      "components/InviteParticipant.tsx",
+      "utils/parsePhoneNumber.ts",
+      "pages/api/dial_out.ts",
+      "components/Room.tsx"
+    ],
+    "id": "beh-invite",
+    "title": "Invite panel: E.164 phone parsing, dial-out call, connected-status tracking by participant context"
+  },
+  "media_and_permission_behavior": {
+    "behavior": "Capture uses an application-level getUserMedia wrapper that builds constraints per kind and device, and adds a 1280-by-720 video constraint when simulcast is enabled. Device change re-acquires media with the chosen deviceId, while choosing an audio output device only records the id for the audio element. The pre-join panel persists audio and video toggles to localStorage and the video preference to sessionStorage. Mixed audio is the default playback mode: when on, room audio plays the SDK mixed track; when off, the app creates a separate hidden audio element per remote participant with a self stream. Permission errors map to a blocked-media dialog with a persistent no preference reset.",
+    "device_seams": [
+      "enumerateDevices + devicechange listener: use a fake media device list and a fake devicechange emission",
+      "getUserMedia: use a fake navigator.mediaDevices.getUserMedia returning a scripted stream, including a NotAllowedError path",
+      "getDisplayMedia: use a fake that yields a stoppable presentation track and emits end deterministically",
+      "setSinkId: gate the audio-output menu and playback-sink behavior behind a feature-detection helper so non-supporting browsers hide the menu",
+      "MediaStreamTrack.stop: verify single stop per track on unmount via a stop spy"
+    ],
+    "evidence": [
+      "utils/userMedia.ts",
+      "utils/virtualBackground.ts",
+      "components/MediaPreview/index.tsx",
+      "components/MediaPreview/MediaControlBar.tsx",
+      "components/MediaControlBar.tsx",
+      "components/RoomControls/RoomControls.tsx",
+      "components/RoomAudio.tsx",
+      "components/AudioTrack.tsx"
+    ],
+    "id": "beh-media",
+    "title": "Media capture, constraint building, device selection, mixed audio, and permission errors"
+  },
+  "metadata": {
+    "inspection_scope": "User-visible behavior of the frozen Telnyx Meet source (screens, routes, room lifecycle, media controls, participant flows, state transitions, SDK events, chat, invitations, screen sharing, presentation, diagnostics, metrics, reconnect, feature flags). No migration code was written; only benchmark/vue-fastvm-test/scouts/behavior.json is produced.",
+    "plain_prose_existing_behavior_string_note": "Camera and microphone labels remain as-is: pre-join shows text under the icons and the in-meeting bar omits the labels. Unlabeled upload button: Camera is off appears on the pre-join panel when the video track is off. Leaving the room with an active presentation does not stop the published presentation stream except through the presentationTracks onended hook; test seam is a fake getDisplayMedia track whose end event can be dispatched.",
+    "source_pressure_note": "This report is behavioral parity evidence for a Vue/Nuxt 3 migration. Every claim cites the repository paths that prove it. Nothing here is a verbatim copy of UI text; strings are quoted only when the source behavior depends on their exact literal value (disabled-button regex, query flag strings, notification copy, storage keys)."
+  },
+  "metrics": {
+    "behavior": "The network quality bar renders on every feed when there is a per-participant report entry, color-coded 1 through 5. The WebRTC stats overlay is toggled per feed and polls the per-participant stats at a 500ms interval, with tabs for audio and video and a close button; it stops on error by clearing the interval and closing the overlay. The video bitrate readout polls per second, derives inbound bytes received, and renders the bytes-per-second conversion. Both are gated by the browser: the stats overlay and the bitrate readout only render on allowed browsers (Chrome and Safari), while the quality bar renders unconditionally for each feed. This is a parity risk: the gating is partially divergent across the three surfaces in the source.",
+    "evidence": [
+      "components/NetworkMetricsMonitor.tsx",
+      "components/WebRTCStats.tsx",
+      "components/VideoBitrate.tsx",
+      "components/Feed/Feed.tsx"
+    ],
+    "id": "beh-metrics",
+    "title": "Metrics: per-feed network quality bar, WebRTC stats overlay, and video bitrate"
+  },
+  "parity_gate_ids": [
+    "meeting-workflow-regression",
+    "resource-cleanup",
+    "video-sdk-contract",
+    "server-secret-boundary",
+    "meeting-workflow-regression",
+    "automated-tests",
+    "responsive-visual-evidence",
+    "vue-architecture"
+  ],
+  "parity_risks": [
+    {
+      "evidence": [
+        "pages/rooms/index.tsx"
+      ],
+      "id": "risk-reconnect-counter",
+      "statement": "The page counter starts at one and the retry condition is count less than or equal to three, allowing four attempts total instead of three; the counter also never resets on a successful reconnect, so transient drops early in a call consume the budget.",
+      "title": "Reconnect counter off-by-one"
+    },
+    {
+      "evidence": [
+        "pages/api/refresh_client_token.ts",
+        "hooks/room.ts"
+      ],
+      "id": "risk-refresh-room-id",
+      "statement": "The browser posts only the refresh token, but the server builds the upstream URL from the body room id, so the refresh path contains the literal undefined unless the client starts sending room_id; pin this behavior or change it deliberately with a regression test.",
+      "title": "Token refresh URL uses an undefined room id"
+    },
+    {
+      "evidence": [
+        "hooks/room.ts"
+      ],
+      "id": "risk-state-before-connected",
+      "statement": "The connected handler updates the participant order and subscriptions, but the state snapshot that drives the UI-connected layout is published in the same handler; if the SDK emits connected before its own state boolean flips, the in-call layout may not appear until the next state event. A regression test must pin the connect-to-layout latency.",
+      "title": "State snapshot placed before the connected handler"
+    },
+    {
+      "evidence": [
+        "hooks/room.ts"
+      ],
+      "id": "risk-connected-then-connect-order",
+      "statement": "The SDK listener set is registered before the connect call, which is race-safe for events emitted after connect, but if the connect promise resolves and the connected event is emitted synchronously during the await, there is a microtask window where sendNotification and the page callback fire before the state update if the connected handler is still resolving. Pin with fake timers.",
+      "title": "Listenable handler registered before connect"
+    },
+    {
+      "evidence": [
+        "components/Room.tsx",
+        "components/InviteParticipant.tsx"
+      ],
+      "id": "risk-page-init-vs-uid-stable",
+      "statement": "Page init and onParticipantJoined key invites by the participant context username, but a rejoin creates a new participant id; the invite map is matching by the username from the context so rejoin tracking must be username-stable, not id-stable. A parity test must simulate a rejoin with the same context username.",
+      "title": "Stable participant identity across rejoin"
+    },
+    {
+      "evidence": [
+        "pages/rooms/index.tsx"
+      ],
+      "id": "risk-join-audio-probe-mixed-cases",
+      "statement": "The probe checks for a specific DOMException name on NotAllowed, but any other error type is treated as success; undery. A fake media-device double that throws a non-NotAllowed error must be treated as a pass to preserve behavior.",
+      "title": "Join audio probe mixed-case behavior"
+    },
+    {
+      "evidence": [
+        "hooks/room.ts",
+        "components/Chat.tsx"
+      ],
+      "id": "risk-chat-username-falsey",
+      "statement": "Message_received resolves the sender username context JSON, but if the parsed username is undefined the chat renders undefined; there is no id fallback at the source. Render the participant id as a fallback instead, or pin the source behavior exactly.",
+      "title": "Chat username fallback to participant id"
+    },
+    {
+      "evidence": [
+        "components/InviteParticipant.tsx"
+      ],
+      "id": "risk-dialout-nonok",
+      "statement": "A non-2xx dial-out response is handled by the invite tracker with a failure toast, but the UX is to remove the invite from the map, not to lock or show an error dialog. Parity tests must not expect a blocking error state for a failed dial-out.",
+      "title": "Dial-out non-2xx only surfaced via tracker"
+    },
+    {
+      "evidence": [
+        "components/NetworkMetricsMonitor.tsx",
+        "components/WebRTCStats.tsx",
+        "components/VideoBitrate.tsx",
+        "components/Feed/Feed.tsx"
+      ],
+      "id": "risk-metrics-gating-divergent",
+      "statement": "The quality bar renders for every feed, while the stats overlay and bitrate readout only render on allowed browsers (Chrome and Safari). A parity test must still render the quality bar for a non-allowed browser, even though the two overlays are hidden.",
+      "title": "Three metric surfaces gated differently"
+    },
+    {
+      "evidence": [
+        "pages/api/client_token.ts",
+        "pages/rooms/index.tsx"
+      ],
+      "id": "risk-token-fallback-bugsnag",
+      "statement": "On non-2xx, the route returns the upstream status text as the JSON body, not an error object; the client only reads data.token on success, so a non-2xx token response yields undefined tokens and an empty-page join state. Keep the route returning the upstream status text and have the client handle the undefined path.",
+      "title": "Token generation and refresh both degrade to upstream text"
+    },
+    {
+      "evidence": [
+        "components/Room.tsx",
+        "components/RoomAudio.tsx",
+        "components/AudioTrack.tsx"
+      ],
+      "id": "risk-mixed-audio-default",
+      "statement": "The mixed-audio flag defaults to on, meaning the app plays the SDK mixed track, not per-participant audio. A parity test must assert a single hidden audio element by default and multiple elements only after the toggle is flipped.",
+      "title": "Mixed audio is the default playback mode"
+    },
+    {
+      "evidence": [
+        "utils/virtualBackground.ts",
+        "components/MediaPreview/MediaControlBar.tsx",
+        "components/MediaControlBar.tsx"
+      ],
+      "id": "risk-virtual-background-chrome-desktop",
+      "statement": "Virtual background capture is gated on chrome plus desktop. On other browsers the feature is simply hidden, not disabled with an error. The migration should gate by a platform check and hide, not throw.",
+      "title": "Virtual background is browser and platform gated"
+    }
+  ],
+  "pre_join_workflow": {
+    "behavior": "The pre-join panel captures the local camera and microphone only when the stored audio or video preference is yes or the stored toggle is already on. The captured track is mirrored in the preview and can be toggled, and the toggled state is persisted to localStorage. A device error (for example a blocked microphone) persists a no preference and opens a blocked-media error dialog. When the user clicks join, the username is saved to localStorage, an audio permission probe runs, and a successful probe triggers the token acquisition (either the supplied query tokens or a POST to /api/client_token with the room id).",
+    "evidence": [
+      "pages/rooms/index.tsx",
+      "components/JoinRoom.tsx",
+      "components/MediaPreview/index.tsx",
+      "components/MediaPreview/MediaControlBar.tsx",
+      "components/MediaControlBar.tsx",
+      "utils/storage.ts",
+      "utils/userMedia.ts"
+    ],
+    "id": "wf-pre-join",
+    "title": "Pre-join: device capture, permission probe, token acquisition, storage of username and preferences"
+  },
+  "reading_plan_for_validation": {
+    "dependency_graph": "Every depends_on value must equal an id defined in work_packages.",
+    "parse_json": "python3 -m json.tool benchmark/vue-fastvm-test/scouts/behavior.json",
+    "path_evidence": "Every path cited must resolve in this repository at base commit 928f71969030a6c0aa93c190d8edeab02efe0840."
+  },
+  "reconnect_behavior": {
+    "behavior": "When the auto-reconnect flag is on and the disconnect reason is not user-initiated, the page clears both tokens and re-runs the join flow, incrementing a counter up to a maximum of three reconnect attempts and toasting a progress message per attempt. The token refresh interval only fires while connected. A network-error disconnect does not itself retry from the room hook; the retry decision is made entirely by the page-level callback. Two parity risks live here: the source counter starts at one and the condition is count less than or equal to three, so the source allows up to four rejoin calls (the initial join plus three automatic rejoin attempts); and a disconnect while the counter is already at the cap does not retry, but the counter is not reset on a successful reconnect, so a long-lived room may exhaust its reconnect attempts from earlier transient drops.",
+    "evidence": [
+      "pages/rooms/index.tsx",
+      "hooks/room.ts",
+      "pages/api/refresh_client_token.ts"
+    ],
+    "id": "beh-reconnect",
+    "title": "Auto-reconnect: capped retries for non-user-initiated disconnects, no in-room retry for network errors"
+  },
+  "run_id": "scout-vue-behavior-92482b23",
+  "schema_version": "1.0",
+  "screen_sharing_and_presentation": {
+    "behavior": "Sharing captures the display with audio plus video. The captured tracks become the presentation stream when they are not already published, and the presentation stream is removed when the user stops or the sharing track ends. The share button is disabled while someone else is presenting. The Feeds layout switches from the grid to the presentation layout whenever a presenter is set, rendering the presenter presentation stream large and the participant feed turns in a paginated sidebar, and returns to the grid when the presenter is cleared.",
+    "evidence": [
+      "components/RoomControls/RoomControls.tsx",
+      "hooks/room.ts",
+      "components/Feeds.tsx",
+      "components/ScreenSharingLayout.tsx",
+      "components/GridLayout.tsx"
+    ],
+    "id": "beh-share",
+    "title": "Screen sharing: getDisplayMedia capture, presentation stream add/remove, presenter switching"
+  },
+  "screens_and_routes": [
+    {
+      "behavior": "Renders the app header, a static info note about the demo, and a single primary link to the room list. No data fetching; the note that the backend room id is hardcoded is a comment in source, not a rendered user-visible string.",
+      "evidence": [
+        "pages/index.tsx",
+        "components/AppHeader.tsx"
+      ],
+      "file": "pages/index.tsx",
+      "id": "route-landing",
+      "route": "/",
+      "title": "Landing screen: static demo note plus a Join A Room link to /rooms"
+    },
+    {
+      "behavior": "On mount, fetches /api/rooms. While loading, nothing renders inside the main box. After the fetch, an empty list shows a red notice prompting the user to check the VPN. A non-empty list renders a table with Name, UUID (linked to /rooms/[id]), Max participants, and Yes/No record audio and video columns. Failed fetch still shows the empty notice because only setRooms on success is guarded, while the loading flag is set unconditionally.",
+      "evidence": [
+        "pages/rooms/list.tsx",
+        "pages/api/rooms/index.ts"
+      ],
+      "file": "pages/rooms/list.tsx",
+      "id": "route-room-list",
+      "route": "/rooms",
+      "title": "Room list screen: fetches GET /api/rooms and renders a table or an empty notice"
+    },
+    {
+      "behavior": "The route reads roomId, client_token, and refresh_token from the query string and forwards them to the shared Rooms page. When both tokens are supplied, the join flow skips the /api/client_token request and uses the supplied pair directly, which is how pre-generated tokens can be used without server-side token generation.",
+      "evidence": [
+        "pages/rooms/[roomId].tsx",
+        "pages/rooms/index.tsx"
+      ],
+      "file": "pages/rooms/[roomId].tsx",
+      "id": "route-room-join",
+      "route": "/rooms/[roomId]",
+      "title": "Direct room URL: renders the same Rooms page with the roomId from the URL and optional client_token and refresh_token query parameters"
+    },
+    {
+      "behavior": "Before roomId and username and both tokens are present, the page renders a MediaPreview panel next to the JoinRoom form. The two-column grid collapses to a single column below the medium breakpoint. A generated username is pre-filled from localStorage or a random color-plus-animal name, and an audio permission probe runs when the user clicks join: a NotAllowedError opens a blocked-media error dialog and aborts the join, while any other error or success proceeds to the token flow.",
+      "evidence": [
+        "pages/rooms/index.tsx",
+        "components/JoinRoom.tsx",
+        "components/MediaPreview/index.tsx",
+        "components/MediaPreview/helper.tsx"
+      ],
+      "file": "pages/rooms/index.tsx",
+      "id": "route-pre-join",
+      "route": "pre-join state of /rooms/[roomId]",
+      "title": "Pre-join screen: media preview panel and join form in a responsive two-column grid at medium viewports"
+    },
+    {
+      "behavior": "While the room is undefined or the state is connecting, a Joining room banner is shown. When connected, the layout swaps to the feeds area (grid or presentation layout) plus optional participants list side panel, optional invite panel, the bottom control bar, and a hidden audio element that plays mixed audio or per-participant audio tracks. Controls and side panels only render once the status is connected.",
+      "evidence": [
+        "components/Room.tsx",
+        "components/RoomControls/RoomControls.tsx",
+        "components/Feeds.tsx",
+        "components/RoomAudio.tsx"
+      ],
+      "file": "components/Room.tsx",
+      "id": "route-in-call",
+      "route": "in-call state of /rooms/[roomId]",
+      "title": "In-call screen: joining banner while connecting, feeds when connected, side panels, controls, and hidden mixed audio element"
+    },
+    {
+      "behavior": "Unknown routes render the 404 page. Uncaught render errors are funneled through the bugsnag-built error boundary whose fallback is a minimal error view. Error notifications for expected failures (token generation, dial-out, media) are toast-style notifications, not full-page errors.",
+      "evidence": [
+        "pages/404.tsx",
+        "pages/_error.tsx",
+        "pages/_app.tsx",
+        "lib/bugsnag.js"
+      ],
+      "file": "pages/404.tsx",
+      "id": "route-not-found",
+      "route": "404 and uncaught errors",
+      "title": "Not-found and error screens"
+    }
+  ],
+  "sdk_event_handling": [
+    {
+      "behavior": "Seeds the participant order with the local participant first, sets the presenter if a presentation stream is present, adds a subscription for every remote stream present, fires the onConnected callback, and enables the network metrics report for all participants when the flag is on.",
+      "event": "connected",
+      "evidence": [
+        "hooks/room.ts"
+      ],
+      "id": "ev-connected",
+      "title": "On connect: seed participant order, track the presenter, subscribe to remote streams, enable network metrics"
+    },
+    {
+      "behavior": "Toasts a reason-specific message (network error prompts a network check, user-initiated notes that the user left, timed out notes the connection timeout), clears the participant order, and forwards the reason to the page-level onDisconnected callback which drives auto-reconnect.",
+      "event": "disconnected",
+      "evidence": [
+        "hooks/room.ts",
+        "pages/rooms/index.tsx"
+      ],
+      "id": "ev-disconnected",
+      "title": "On disconnect: toast per reason, reset participant order, forward reason to page callback"
+    },
+    {
+      "behavior": "Adds the new participant to the activity order, re-enables the network metrics report when the flag is on, and calls onParticipantJoined so the page can mark a matching numbered invite as connected by parsing the participant context username.",
+      "event": "participant_joined",
+      "evidence": [
+        "hooks/room.ts",
+        "components/Room.tsx"
+      ],
+      "id": "ev-participant-joined",
+      "title": "Participant joined: append to order, re-enable metrics, notify page for invite tracking"
+    },
+    {
+      "behavior": "When the reason is a moderator kick, toasts a message that names the kicked participant (self first-person, others by the username parsed from their context), and disables the network metrics report for that participant when the flag is on.",
+      "event": "participant_leaving",
+      "evidence": [
+        "hooks/room.ts"
+      ],
+      "id": "ev-participant-leaving",
+      "title": "Participant leaving: moderator kick toast and metrics disable"
+    },
+    {
+      "behavior": "Clears the presenter if the presenter left, clears the dominant speaker if it was the leaver, removes the participant from the activity order while keeping the local participant first, and disables the metrics report for the leaver when the flag is on.",
+      "event": "participant_left",
+      "evidence": [
+        "hooks/room.ts"
+      ],
+      "id": "ev-participant-left",
+      "title": "Participant left: clear presenter and dominant speaker if it was them, remove from order"
+    },
+    {
+      "behavior": "Sets the presenter when a presentation stream is published and adds a subscription for newly published remote streams.",
+      "event": "stream_published",
+      "evidence": [
+        "hooks/room.ts"
+      ],
+      "id": "ev-stream-published",
+      "title": "Stream published: set presenter for presentation, subscribe to remote streams"
+    },
+    {
+      "behavior": "Clears the presenter when the presentation stream is unpublishied, and clears the dominant speaker if the self stream of the dominant speaker is unpublished.",
+      "event": "stream_unpublished",
+      "evidence": [
+        "hooks/room.ts"
+      ],
+      "id": "ev-stream-unpublished",
+      "title": "Stream unpublished: clear presenter, clear dominant speaker for the self stream"
+    },
+    {
+      "behavior": "When a video track is enabled, marks the room video as playing; when disabled, clears it. Audio-only enabled/disabled events do not change UI-visible state in the source aside from the control bar reflecting the stream flags.",
+      "event": "track_enabled / track_disabled",
+      "evidence": [
+        "hooks/room.ts"
+      ],
+      "id": "ev-track-enabled-disabled",
+      "title": "Track enabled or disabled: toggle the video-playing flag for video tracks"
+    },
+    {
+      "behavior": "Toasts a moderator-censorship message naming the stream key and the participant (self first-person, others by username parsed from context). Files without a context username fall back to the participant id.",
+      "event": "track_censored / track_uncensored",
+      "evidence": [
+        "hooks/room.ts"
+      ],
+      "id": "ev-track-censored-uncensored",
+      "title": "Audio censored or uncensored by the moderator: first-person or named toast"
+    },
+    {
+      "behavior": "When a remote participant is speaking on the self stream, sets the dominant speaker id and pushes that participant to the front of the activity order behind the local participant. The dominant speaker id is cleared 5 seconds after the last activity by a reset timer.",
+      "event": "audio_activity",
+      "evidence": [
+        "hooks/room.ts",
+        "components/Feed/Feed.tsx"
+      ],
+      "id": "ev-audio-activity",
+      "title": "Audio activity: set the dominant speaker and reorder the activity for the self stream"
+    },
+    {
+      "behavior": "The source registers these three events with no-op handlers, so subscription lifecycle does not currently drive any user-visible change. The parity rule is to keep them no-op unless the migration changes this deliberately.",
+      "event": "subscription_started / subscription_reconfigured / subscription_ended",
+      "evidence": [
+        "hooks/room.ts"
+      ],
+      "id": "ev-subscription",
+      "title": "Subscription lifecycle events are registered but have empty handlers"
+    },
+    {
+      "behavior": "Resolves the sender username from the parsed sender context, appends the message to the unread ref and to the message list; the chat badge badge total grows even before the chat is opened.",
+      "event": "message_received",
+      "evidence": [
+        "hooks/room.ts",
+        "components/Chat.tsx"
+      ],
+      "id": "ev-message-received",
+      "title": "Message received: record username from context, append to unread and to the message list"
+    },
+    {
+      "behavior": "Stores the report in the shared metrics state, which the per-participant monitor reads to render a 1-5 bar connection-quality indicator.",
+      "event": "network_metrics_report",
+      "evidence": [
+        "hooks/room.ts",
+        "components/NetworkMetricsMonitor.tsx"
+      ],
+      "id": "ev-network-metrics",
+      "title": "Network metrics report: update the shared metrics state for the per-participant monitor bar"
+    }
+  ],
+  "server_http_behavior": {
+    "behavior": "All five server routes propagate a UUID request id header, report via bugsnag, map the upstream status and body onto the response, and return 405 with an Allow header for the wrong method. GET rooms and GET rooms by id and the two token POSTs return 500 with no body on upstream exceptions. Room list and room lookup echo the upstream data; token generation returns the data with a 60-second client and 3600-second refresh TTL; refresh returns the data with a 120-second TTL; dial-out forwards the context id plus username plus destination. The refresh route reads the room id from the request body but the browser only posts the refresh token, so the URL path resolves against an undefined room id and the request hits a URL with a literal undefined in it; this is a source quirk that a parity regression test must pin unless the team decides to fix it.",
+    "evidence": [
+      "pages/api/rooms/index.ts",
+      "pages/api/rooms/[roomId].ts",
+      "pages/api/client_token.ts",
+      "pages/api/refresh_client_token.ts",
+      "pages/api/dial_out.ts",
+      "hooks/room.ts"
+    ],
+    "id": "beh-server",
+    "title": "Server route semantics preserved for parity"
+  },
+  "state_transitions": {
+    "behavior": "useRoom exposes the SDK state plus derived data. The UI reacts: undefined and connecting render the joining banner, connected renders feeds and controls, and the disconnected reason drives the toast message and the page-level reconnect callback. The control bar toggles for mic and video are disabled until the self stream is configured. The placement of the state update inside the connected handler is a parity risk: if the SDK emits connected before its own state is flipped, the UI could stay on the joining banner until the next state event fires.",
+    "evidence": [
+      "hooks/room.ts",
+      "components/Room.tsx",
+      "components/RoomControls/RoomControls.tsx"
+    ],
+    "id": "st-room",
+    "states": [
+      "undefined (not yet initialized)",
+      "connecting",
+      "connected",
+      "disconnected"
+    ],
+    "title": "Room state machine and UI reaction"
+  },
+  "task_id": "scout-vue-behavior",
+  "work_packages": [
+    {
+      "covers": [
+        "route-landing",
+        "route-room-list",
+        "route-room-join",
+        "route-pre-join",
+        "route-in-call",
+        "route-not-found"
+      ],
+      "dependencies": [],
+      "evidence": [
+        "pages/index.tsx",
+        "pages/rooms/list.tsx",
+        "pages/rooms/[roomId].tsx",
+        "pages/rooms/index.tsx",
+        "pages/404.tsx",
+        "pages/_error.tsx",
+        "components/AppHeader.tsx"
+      ],
+      "id": "wp-screens-and-routes",
+      "scaffolding": "A set of component tests plus a browser smoke flow.",
+      "stub_observability": [
+        "Clicking the join link on the landing page navigates to the room list.",
+        "The room list shows a loading, empty, and populated state with a mocked /api/rooms response.",
+        "Direct room URL with query roomId populates the pre-join form with the id.",
+        "The 404 and error screens render against their trigger paths.",
+        "The participants grid is streamed into the DOM directly with no raw test selector required; the grid is a pure function of the rooms map and participant order."
+      ],
+      "title": "Parity coverage for screens and routes"
+    },
+    {
+      "covers": [
+        "routes and server semantic items",
+        "token refresh quirk"
+      ],
+      "dependencies": [],
+      "evidence": [
+        "pages/rooms/index.tsx",
+        "pages/api/client_token.ts",
+        "pages/api/refresh_client_token.ts",
+        "hooks/room.ts"
+      ],
+      "id": "wp-token-and-auth",
+      "scaffolding": "Fetch-double based server and page unit tests.",
+      "test_seams": [
+        "A fetch double for POST /api/client_token asserts the room id is in the body and the token pair is set on success.",
+        "A fetch double that throws or returns non-2xx with an upstream message body must result in an empty token state on the page, not a hang.",
+        "A fetch double for /api/refresh_client_token asserts the ttl is updated in the client token state even when the browser does not send room_id, keeping the source quirk identifiable.",
+        "A query payload with client_token and refresh_token bypasses the POST to /api/client_token entirely."
+      ],
+      "title": "Token acquisition, refresh, and auth parity"
+    },
+    {
+      "covers": [
+        "state transitions",
+        "every event in the SDK event handling set",
+        "the state-before-connected and connected-then-connect-order risks"
+      ],
+      "dependencies": [
+        "wp-token-and-auth"
+      ],
+      "evidence": [
+        "hooks/room.ts",
+        "components/Room.tsx",
+        "components/RoomControls/RoomControls.tsx"
+      ],
+      "id": "wp-room-lifecycle",
+      "scaffolding": "A video SDK fake plus a fake clock for the 18-event surface plus timer assertions.",
+      "test_seams": [
+        "On init, the room is created with a client token and a context and the state is the init state as-is; the connected handler has not yet run.",
+        "Emitted connected with a seeded participant map and streams: the participant order is seeded, the presenter is set for a presentation stream, addSubscription is called for every remote stream, the network metrics report is enabled when the flag is on, and the onConnected callback fires.",
+        "Emitted disconnected with reason network error: a toast fires, the participant order is reset, and the page onDisconnected callback receives the reason.",
+        "Emitted participant joined: the new id is appended, the network metrics report is re-enabled when the flag is on, and onParticipantJoined is called for the invite tracker.",
+        "Emitted stream published: the presenter is set for a presentation key, and a new remote stream is subscribed to.",
+        "Emitted participant left: the presenter and dominant speaker are cleared if the leaver was the current one, and the order is updated.",
+        "Emitted message received: the message is appended to the unread ref and the message list, and the senders username is read from the context.",
+        "A 50-second token refresh tick with a fetch double: the new token is applied to the client and the in-room state transitions without dropping the presentation or dominant speaker state.",
+        "A 5-second dominant speaker reset: the dominant speaker id is cleared and the activity order is re-seeded so the local participant stays first."
+      ],
+      "title": "Room lifecycle: init, connect, connect already-published state, events, and disconnect"
+    },
+    {
+      "covers": [
+        "media and permission behavior",
+        "a subset of the virtual background risk"
+      ],
+      "dependencies": [
+        "wp-room-lifecycle"
+      ],
+      "evidence": [
+        "utils/userMedia.ts",
+        "utils/virtualBackground.ts",
+        "components/MediaPreview/index.tsx",
+        "components/MediaPreview/MediaControlBar.tsx",
+        "components/MediaControlBar.tsx",
+        "components/RoomControls/RoomControls.tsx",
+        "components/RoomAudio.tsx",
+        "components/AudioTrack.tsx",
+        "utils/storage.ts"
+      ],
+      "id": "wp-media-permissions",
+      "scaffolding": "A media device double plus a platform check double plus a storage double.",
+      "test_seams": [
+        "A media double that yields an audio and a video track: the pre-join preview renders both, the audio toggle persists the preference to a storage double, and the video toggle persists the preference.",
+        "A media double that throws a NotAllowed error on audio: the blocked-media dialog opens and the preference is persisted as no.",
+        "A media double where the first enumerate has some labels missing: the diagnostic show path renders and no error dialog shows.",
+        "A platform check that reports a non-supported browser: the virtual background menu is not rendered, and the join succeeds.",
+        "A getDisplayMedia double that returns a stoppable sharing track: the presentation stream is added to the room, the share button is disabled while a remote presenter is active, and the presentation stream is removed when the track ends.",
+        "A storage double that has audio enabled persisted as yes on load: the pre-join panel auto-acquires audio on mount and the preview shows the mirror."
+      ],
+      "title": "Media capture, device selection, mixed audio, diagnostics, and permission behavior"
+    },
+    {
+      "covers": [
+        "chat participant flow",
+        "invite and connected tracking",
+        "a subset of the page init versus uid-stable risk and the dial-out non-2xx risk"
+      ],
+      "dependencies": [
+        "wp-room-lifecycle"
+      ],
+      "evidence": [
+        "components/InviteParticipant.tsx",
+        "components/Room.tsx",
+        "utils/parsePhoneNumber.ts",
+        "pages/api/dial_out.ts"
+      ],
+      "id": "wp-participant-and-invite",
+      "scaffolding": "A fetch double for /api/dial_out plus a video SDK double for participant_joined, plus a platform double for the dial-out flag.",
+      "test_seams": [
+        "The invite panel renders only when the dial_out flag is true in the query.",
+        "The send button is disabled for input that does not match the E.164 pattern, and enabled for a valid number.",
+        "Clicking send with a valid number posts the room id plus a context id plus the number, and the participant is added to the invited map keyed by the number.",
+        "A fake participant_joined event with context username equal to the number: the invite resolves with a connected toast and is removed from the invited map within the 30-second timeout.",
+        "A fake participant_joined with a different username: the invite times out at 30 seconds with a no-answer toast and is removed from the map.",
+        "A fetch double for /api/dial_out returning non-2xx: the invite is removed with a failure toast and no blocking error dialog appears.",
+        "A rejoin scenario where the participant gets a new id but the same context username: the invite-connected map still resolves correctly, proving the key is the username not the id."
+      ],
+      "title": "Participant list, invite, dial-out, and invite-connected tracking"
+    },
+    {
+      "covers": [
+        "chat"
+      ],
+      "dependencies": [
+        "wp-room-lifecycle"
+      ],
+      "evidence": [
+        "components/Chat.tsx",
+        "components/RoomControls/RoomControls.tsx",
+        "hooks/room.ts"
+      ],
+      "id": "wp-chat",
+      "scaffolding": "A video SDK fake for message_received and sendMessage plus a DOM-like double for scrollHeight.",
+      "test_seams": [
+        "The chat button is rendered only when the local participant can receive messages.",
+        "Opening the chat clears the unread message ref.",
+        "A message_received for a remote sender: the message is rendered with the senders username from the context and the unread badge increments by one while the chat is closed.",
+        "A message sent by the local participant: the message renders labeled as Me, with the right-aligned styling, and the unread badge does not increment.",
+        "The input is emptied after a send with a non-empty value, and a send with an empty value does not call sendMessage.",
+        "The message list auto-scrolls to the bottom when a new message arrives."
+      ],
+      "title": "Chat: send, render local vs sender, auto-scroll, unread badge"
+    },
+    {
+      "covers": [
+        "metrics and diagnostics",
+        "a subset of the metrics-gating-divergent risk"
+      ],
+      "dependencies": [
+        "wp-room-lifecycle"
+      ],
+      "evidence": [
+        "components/NetworkMetricsMonitor.tsx",
+        "components/WebRTCStats.tsx",
+        "components/VideoBitrate.tsx",
+        "components/MediaPreview/index.tsx",
+        "components/Feed/Feed.tsx"
+      ],
+      "id": "wp-metrics-and-diagnostics",
+      "scaffolding": "A video SDK fake for network_metrics_report and getWebRTCStatsForStream plus a platform double for the allowed-browser gating, plus a fake clock.",
+      "test_seams": [
+        "A network_metrics_report event: the per-feed network quality bar renders with a 1 through 5 level, even on a browser that hides the stats overlay and bitrate readouts.",
+        "The web-r-t-c stats overlay only renders its toggle button on an allowed browser (Chrome or Safari) in the platform double, and hides it elsewhere while the quality bar still renders.",
+        "The overlay polls getWebRTCStatsForStream every 500ms, and a getWebRTCStatsForStream that throws clears the interval and closes the overlay.",
+        "The bitrate readout polls every 1000ms and renders the bytes-per-second conversion, gated by the allowed-browser check.",
+        "The diagnostics button only renders when the diagnostics flag is true, and while running it is disabled and labeled as loading.",
+        "A non-2xx response from the metrics report path still leaves the quality bar rendering (the quality bar reads from the report state, not from a separate route)."
+      ],
+      "title": "Metrics surfaces and the diagnostics button"
+    },
+    {
+      "covers": [
+        "reconnect behavior",
+        "a subset of the reconnect-counter risk"
+      ],
+      "dependencies": [
+        "wp-room-lifecycle"
+      ],
+      "evidence": [
+        "pages/rooms/index.tsx",
+        "hooks/room.ts"
+      ],
+      "id": "wp-reconnect",
+      "scaffolding": "A video SDK fake with a scriptable disconnected event plus a fetch double for the token flow, plus a fake clock.",
+      "test_seams": [
+        "With auto_reconnect true and reason network error: the counter increments, a toasting progress message is shown, and the join is retried.",
+        "With auto_reconnect true and reason user initiated: no retry occurs, the tokens are cleared, and the page returns to the pre-join view.",
+        "A repeated sequence of network error disconnects: the counter advances to the cap, and after the cap is hit the room does not rejoin; the tokens remain cleared.",
+        "A successful reconnect followed by another disconnect: the counter continues from its prior value, so the counter is not reset on a successful reconnect, pinning the off-by-one parity risk to the test outcome rather than the code."
+      ],
+      "title": "Auto-reconnect: capped retries for non-user-initiated disconnects, no retry for user-initiated"
+    },
+    {
+      "covers": [
+        "feature flags"
+      ],
+      "dependencies": [
+        "wp-token-and-auth"
+      ],
+      "evidence": [
+        "pages/rooms/index.tsx"
+      ],
+      "id": "wp-flags-and-visibility",
+      "scaffolding": "A route-query double plus the flags-exact-string-match rule.",
+      "test_seams": [
+        "Each of the seven query flags parses as true only for the string true, and as false for any other value including on, yes, 1, TRUE, and empty.",
+        "The dial_out flag turns the invite button on and off in the control bar.",
+        "The network_metrics flag toggles the network metrics report calls on connect and participant events.",
+        "The simulcast flag adds the 1280-by-720 constraint to video capture when set.",
+        "The audio_control flag toggles the mixed-audio playback button in the control bar."
+      ],
+      "title": "Feature flag parse and visibility gates"
+    }
+  ]
+}
