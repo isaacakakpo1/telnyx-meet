@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
-import Index from '@/pages/index.vue';
+import Index from '../../../pages/index.vue';
 
 // The landing page is mounted standalone: the auto-imported Nuxt context
 // components (AppHeader via i route component registration, NuxtLink) are
