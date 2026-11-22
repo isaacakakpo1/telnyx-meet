@@ -1,33 +1,48 @@
 {
+  "extends": "./.nuxt/tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
-    "target": "es5",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "strict": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
-    "sourceMap": true,
     "downlevelIteration": true,
-    "incremental": true
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx"
+    ".nuxt/nuxt.d.ts",
+    ".nuxt/types/**/*.d.ts",
+    "app.vue",
+    "components/**/*.vue",
+    "pages/**/*.vue",
+    "layouts/**/*.vue",
+    "composables/**/*.ts",
+    "plugins/**/*.ts",
+    "middleware/**/*.ts",
+    "server/**/*.ts",
+    "stores/**/*.ts",
+    "types/**/*.ts",
+    "tests/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dist",
+    "benchmark",
+    "next-env.d.ts",
+    "contexts",
+    "hooks",
+    "lib",
+    "utils",
+    "**/pages/**/*.tsx",
+    "**/pages/**/*.ts",
+    "**/components/**/*.tsx",
+    "**/components/**/*.ts"
   ]
 }
