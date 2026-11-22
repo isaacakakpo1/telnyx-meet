@@ -64,6 +64,10 @@ export default defineNuxtConfig({
     'pages/**/*.tsx',
     'components/**/*.ts',
     'components/**/*.tsx',
+    'contexts/**',
+    'hooks/**',
+    'lib/**',
+    'utils/**',
     'next-env.d.ts',
   ],
 });
