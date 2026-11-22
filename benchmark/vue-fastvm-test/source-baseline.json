@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "captured_at": "2026-11-22",
+  "base_commit": "4831bd27ef10fb12542b9a187853b94e6b559bea",
+  "host": {
+    "node_version": "v24.13.0",
+    "declared_node_range": ">=22.23.4 <23",
+    "yarn_version": "1.22.22",
+    "note": "The host did not have Node 22 installed. Source commands were rerun with Yarn's engine check disabled; the benchmark still requires the declared clean environment."
+  },
+  "install": {
+    "command": "corepack yarn install --frozen-lockfile --ignore-engines",
+    "status": "passed",
+    "wall_seconds": 16.51
+  },
+  "lint": {
+    "command": "corepack yarn --ignore-engines lint",
+    "status": "passed",
+    "wall_seconds": 1.64,
+    "warnings": 0
+  },
+  "build": {
+    "command": "corepack yarn --ignore-engines build",
+    "status": "passed",
+    "wall_seconds": 35.92,
+    "first_load_shared_kb": 130,
+    "rooms_first_load_kb": 265
+  },
+  "tests": {
+    "status": "not_available",
+    "reason": "The source package defines no unit, component, server-route, or browser test script."
+  },
+  "source_inventory": {
+    "tracked_files": 80,
+    "application_typescript_lines": 5802,
+    "production_framework": "Next.js 12.1.0 and React 17.0.1",
+    "video_sdk": "@telnyx/video 1.0.1"
+  }
+}

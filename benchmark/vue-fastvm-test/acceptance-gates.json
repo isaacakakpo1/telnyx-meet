@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "suite_id": "telnyx-meet-vue-acceptance-v1",
+  "base_commit": "4831bd27ef10fb12542b9a187853b94e6b559bea",
+  "required_checks": [
+    {
+      "id": "vue-architecture",
+      "kind": "architecture",
+      "proves": "Nuxt 3 and Vue 3 Composition API replace the production Next.js and React runtime"
+    },
+    {
+      "id": "clean-build-and-static-quality",
+      "kind": "build",
+      "proves": "A clean checkout installs reproducibly and passes build, type-check, and lint"
+    },
+    {
+      "id": "server-secret-boundary",
+      "kind": "security",
+      "proves": "Telnyx credentials stay server-side and all server routes validate and map upstream behavior"
+    },
+    {
+      "id": "video-sdk-contract",
+      "kind": "contract",
+      "proves": "The Telnyx Video SDK boundary is typed, testable, lifecycle-safe, and behaviorally complete"
+    },
+    {
+      "id": "meeting-workflow-regression",
+      "kind": "integration",
+      "proves": "Room discovery, join, meeting, media, participant, chat, presentation, invite, diagnostics, metrics, and reconnect workflows remain supported"
+    },
+    {
+      "id": "automated-tests",
+      "kind": "verification",
+      "proves": "Unit, component, server-route, and browser smoke suites pass without live Telnyx credentials"
+    },
+    {
+      "id": "responsive-visual-evidence",
+      "kind": "visual",
+      "proves": "Representative desktop and narrow viewport screens are usable and visually reviewed"
+    },
+    {
+      "id": "resource-cleanup",
+      "kind": "reliability",
+      "proves": "SDK listeners, timers, streams, tracks, and generated media resources are disposed deterministically"
+    },
+    {
+      "id": "credential-hygiene",
+      "kind": "security",
+      "proves": "No credential-bearing local or generated files are tracked or emitted as evidence"
+    },
+    {
+      "id": "branch-isolation",
+      "kind": "delivery",
+      "proves": "Only the fork's vue-fastvm-benchmark branch is mutated"
+    },
+    {
+      "id": "documentation",
+      "kind": "review",
+      "proves": "Architecture, parity, security, build, test, and migration documentation is complete"
+    }
+  ],
+  "hidden_suite": {
+    "required": true,
+    "body_location": "sealed outside the candidate repository",
+    "digest_status": "pending-baseline-freeze",
+    "rule": "The same sealed suite and digest must be used for the AFK baseline and Hive run."
+  }
+}

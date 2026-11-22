@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "telnyx-meet-vue-fastvm-v1",
+  "repository_ref": "https://github.com/isaacakakpo1/telnyx-meet",
+  "upstream_ref": "https://github.com/team-telnyx/telnyx-meet",
+  "base_commit": "4831bd27ef10fb12542b9a187853b94e6b559bea",
+  "target_branch": "vue-fastvm-benchmark",
+  "mission_brief_sha256": "07f674a0993b575f024cd04b0054b0e96040cdd3c1ec0719a85d3dd2f250e12e",
+  "acceptance_gates_sha256": "77f30c5d636d763cecad76aa4e3b03d9305c3cc04b8c48fe1b8ce8e80e80172f",
+  "readiness": "execution_ready",
+  "readiness_blocking_gates": [],
+  "competitive_contract_status": "awaiting_same_workload_afk_baseline",
+  "mutation_rule": "Any change to the mission or acceptance-gate digest creates a new benchmark version."
+}

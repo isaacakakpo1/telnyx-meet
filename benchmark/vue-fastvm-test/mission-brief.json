@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "mission_id": "telnyx-meet-vue-fastvm-v1",
+  "objective": "Rewrite the legacy Next.js 12 and React 17 Telnyx Meet sample as a maintainable Nuxt 3 and Vue 3 application using TypeScript and the Composition API, while preserving supported meeting behavior, secure server routes, and a reproducible automated verification boundary.",
+  "expected_outcomes": [
+    "The fork contains a buildable Nuxt 3 and Vue 3 application with no production React, Next.js, Grommet, or styled-components runtime.",
+    "The Telnyx Video SDK is isolated behind a typed Vue composable or adapter with deterministic lifecycle cleanup and test doubles.",
+    "The original room discovery, pre-join, meeting, media, participant, chat, invitation, diagnostics, presentation, and reconnect workflows remain available.",
+    "The room and token HTTP operations remain server-side so Telnyx credentials are never exposed to the browser.",
+    "The migration is independently tested, reviewed, integrated, benchmarked against the same-workload baseline, and reproducible from a clean checkout."
+  ],
+  "targets": [
+    "repo:isaacakakpo1/telnyx-meet@4831bd27ef10fb12542b9a187853b94e6b559bea",
+    "branch:vue-fastvm-benchmark"
+  ],
+  "included_scope": [
+    "Replace the Next.js and React application shell with Nuxt 3, Vue 3, TypeScript, and Composition API conventions",
+    "Preserve landing, room list, room lookup, room join, direct room URL, loading, error, and not-found flows",
+    "Preserve server API behavior for rooms, client token generation, client token refresh, and dial-out without exposing credentials",
+    "Create a typed Telnyx Video SDK boundary for initialization, connection state, subscriptions, participant events, streams, messages, active speaker, network metrics, and teardown",
+    "Preserve media preview, permission handling, camera and microphone toggles, input and output device selection, screen sharing, mixed audio, diagnostics, virtual backgrounds, and video rendering",
+    "Preserve participant grid and presentation layouts, participant and invitation side panels, chat, WebRTC statistics, bitrate and network metric views, optional query feature flags, notifications, and automatic reconnect",
+    "Preserve PWA metadata and existing non-secret public assets",
+    "Add deterministic unit, component, server-route, and browser smoke tests using mocked Telnyx and media boundaries",
+    "Add lint, type-check, build, and test commands suitable for clean CI",
+    "Document the architecture, environment variables, local development, testing, migration decisions, supported behavior, and known limitations"
+  ],
+  "excluded_scope": [
+    "Changing the public Telnyx Video SDK or its upstream repository",
+    "A product redesign unrelated to the Vue migration",
+    "Publishing or deploying the application",
+    "Pushing commits or branches to team-telnyx/telnyx-meet",
+    "Changing main in either the fork or upstream repository",
+    "Using production credentials, production rooms, or destructive external operations",
+    "Requiring a live Telnyx call for automated acceptance",
+    "Replacing Telnyx functionality with simulated UI in production code"
+  ],
+  "acceptance_criteria": [
+    "A clean checkout installs from its committed lockfile and passes the documented build, type-check, lint, unit, component, server-route, and browser smoke commands on the declared Node version.",
+    "Production dependencies and source contain no React, React DOM, Next.js, Grommet, React Font Awesome, React Hot Toast, React Draggable, React Resize Detector, or styled-components runtime.",
+    "Vue source uses Composition API boundaries for durable meeting state and cleans up SDK listeners, tracks, timers, object URLs, and media streams when the room or component is disposed.",
+    "Telnyx API credentials remain server-only and the browser receives only the minimum room or token data required by the existing flows.",
+    "Direct room URLs and optional feature query parameters continue to work, including supplied client and refresh tokens.",
+    "Room connect, disconnect, token refresh, reconnect, participant, stream, presentation, message, active-speaker, track, and network-metric events are covered through a deterministic typed SDK fake.",
+    "Camera, microphone, device selection, screen share, audio output, media preview, virtual background, diagnostics, chat, participant, invite, WebRTC-stat, and network-metric interactions have component or end-to-end coverage.",
+    "The responsive participant and presentation layouts render usable desktop and narrow viewport states without relying on React components.",
+    "Server-route tests cover successful and failed room listing, room lookup, join token, refresh token, and dial-out requests, including request validation and upstream error mapping.",
+    "No secret value, local environment file, model credential, room credential, or generated benchmark evidence containing secrets is tracked.",
+    "The final evidence proves all accepted writes stayed on the fork's vue-fastvm-benchmark branch and upstream and both main branches were not mutated.",
+    "The repository includes an architecture overview, behavior parity matrix, environment and security notes, clean build instructions, test instructions, and migration notes."
+  ],
+  "evidence_requirements": [
+    "Clean-checkout dependency installation, build, type-check, lint, unit, component, server-route, and browser smoke logs",
+    "Static dependency and source scans proving the removed React and Next.js runtime is absent",
+    "Server-secret boundary and credential scan evidence",
+    "Telnyx SDK fake contract tests and meeting event lifecycle evidence",
+    "Responsive screenshots for landing, pre-join, connected meeting, participant panel, chat, presentation, and representative error states",
+    "Behavior parity matrix linked to tests and source paths",
+    "Candidate, decision, conflict, CI, merge, changed-line, cost, timing, and FastVM cleanup receipts",
+    "Git evidence proving all writes stayed on the fork's vue-fastvm-benchmark branch"
+  ],
+  "requested_capabilities": [
+    "read",
+    "write",
+    "pull_request",
+    "merge_target_branch",
+    "fastvm_provision",
+    "model_invoke",
+    "ci_execute"
+  ],
+  "budget": {
+    "wall_minutes": 180,
+    "ci_minutes": 180,
+    "model_cost_usd": 0,
+    "target_live_model_agents": 100
+  },
+  "authority": {
+    "repository": "isaacakakpo1/telnyx-meet",
+    "target_branch": "vue-fastvm-benchmark",
+    "merge_allowed": true,
+    "upstream_write_allowed": false,
+    "main_write_allowed": false,
+    "production_deploy_allowed": false
+  },
+  "base_commit": "4831bd27ef10fb12542b9a187853b94e6b559bea"
+}
