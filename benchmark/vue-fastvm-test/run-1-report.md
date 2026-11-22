@@ -17,6 +17,8 @@ The accepted slice contains:
 - the error page;
 - the room-list and room-detail server routes, including bounded upstream errors and room-id
   validation;
+- the client-token, refresh-token and dial-out mutation routes;
+- the responsive room-list page and reusable pagination component;
 - executable Vue component tests;
 - passing lint, typecheck, unit-test and production-build gates.
 
@@ -34,6 +36,7 @@ The source Next.js application and `main` branch remain untouched.
 | MiniMax header repair | 1 | 365.433 s | 0 | Salvageable 987-byte patch; runtime timed out |
 | Bounded MiniMax API/UI fanout | 3 | 480.052 s | 0 | Three workers reached reconciliation; artifact export failed |
 | DeepSeek room API | 1 | 433.357 s | 0 | Candidate finished in 406.673 s; scope rejection; 15,949-byte patch captured |
+| DeepSeek room UI + mutation APIs | 2 parallel | 585.441 s | 2 | Both candidates completed in scope; fleet returned to zero |
 
 The accepted landing work therefore counts as an **operator-reviewed salvage**, not an autonomous
 Hive completion. The accepted room API is also an operator-reviewed salvage: Hive correctly rejected
@@ -42,6 +45,13 @@ outside its contract. The operator reviewed the five-file reconciliation patch, 
 route/test files, and separately accepted the Vitest discovery fix because existing `.spec.ts` tests
 were otherwise silently omitted. Rejected candidates were not promoted merely because they contained
 code.
+
+The final two-worker wave is the first one that counts as autonomous Hive completion. The mutation
+API worker finished in 388.955 seconds and the room-list worker in 584.218 seconds. Overall wall time
+was 585.441 seconds, compared with 973.173 seconds if the two worker durations were serialized. The
+operator then reviewed the candidates, removed redundant keyboard handlers from native buttons, and
+deduplicated the test-only SFC compiler helper before integration. Those review edits are reported
+separately rather than being attributed to the workers.
 
 ## Local gate timings
 
@@ -60,6 +70,10 @@ one second; ESLint completed in 0.61 seconds, Nuxt typecheck in 1.93 seconds, an
 in 2.30 seconds. The host currently runs Node 24 while the repository requires Node 22, so local
 verification used Yarn's `--ignore-engines` flag. FastVM workers continue to use the benchmark's
 pinned Node 22 toolchain.
+
+After the two-worker wave and review fixes, the integrated host run completed 62 tests across five
+files in 1.04 seconds; ESLint completed in 0.65 seconds, Nuxt typecheck in 2.40 seconds, and the
+production build in 2.95 seconds. Desktop and 390px mobile screenshots were also reviewed.
 
 The build system is therefore not the dominant cost in this Vue run. Model-backed inspection and
 editing consumed roughly 238–365 seconds for the small repair contracts and 720 seconds for each
@@ -93,6 +107,14 @@ micro implementation contract.
 11. **Provider latency still dominates.** The DeepSeek worker produced a coherent, fully tested room
     API, but model-backed work took 406.673 seconds while all local gates together took only a few
     seconds.
+12. **Parallel work helps when ownership is clean.** The room UI and mutation APIs had disjoint write
+    sets, completed independently, and saved about 388 seconds versus serial execution.
+13. **Native controls should keep native semantics.** The pagination candidate added Enter and Space
+    handlers to native buttons. In a real browser those handlers can run in addition to the native
+    click and advance twice. Review removed them; executable tests alone did not expose the issue.
+14. **Not every green gate may share one working directory concurrently.** Vitest briefly failed
+    while Nuxt typecheck/build recreated `.nuxt/tsconfig.json`. Gate scheduling must model generated
+    directory ownership or give mutating gates isolated worktrees.
 
 ## Required Hive changes before the next wave
 
