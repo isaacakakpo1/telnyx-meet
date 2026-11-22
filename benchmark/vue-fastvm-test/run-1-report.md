@@ -4,7 +4,8 @@ Date: 2026-11-22
 
 ## Result so far
 
-This run has produced a green Nuxt 3 shell and a faithful Vue landing slice on the isolated
+This run has produced a green Nuxt 3 shell, a faithful Vue landing slice, and the first Nuxt
+server route slice on the isolated
 `vue-fastvm-benchmark` branch. It has **not** completed the whole rewrite, so it is not counted as a
 successful repository migration or a green pull request yet.
 
@@ -14,6 +15,8 @@ The accepted slice contains:
 - the global application header;
 - the landing page and its `/rooms` navigation contract;
 - the error page;
+- the room-list and room-detail server routes, including bounded upstream errors and room-id
+  validation;
 - executable Vue component tests;
 - passing lint, typecheck, unit-test and production-build gates.
 
@@ -29,10 +32,16 @@ The source Next.js application and `main` branch remain untouched.
 | MiniMax test-harness repair | 1 | 237.991 s | 0 | Salvageable test patch; runtime marked failed |
 | GLM header repair | 1 | 347.926 s | 0 | Provider failure; no patch |
 | MiniMax header repair | 1 | 365.433 s | 0 | Salvageable 987-byte patch; runtime timed out |
+| Bounded MiniMax API/UI fanout | 3 | 480.052 s | 0 | Three workers reached reconciliation; artifact export failed |
+| DeepSeek room API | 1 | 433.357 s | 0 | Candidate finished in 406.673 s; scope rejection; 15,949-byte patch captured |
 
 The accepted landing work therefore counts as an **operator-reviewed salvage**, not an autonomous
-Hive completion. The action-route candidate was rejected rather than being promoted merely because
-it contained code.
+Hive completion. The accepted room API is also an operator-reviewed salvage: Hive correctly rejected
+the candidate because it wrote generated Nuxt output and changed the test-discovery configuration
+outside its contract. The operator reviewed the five-file reconciliation patch, accepted the four
+route/test files, and separately accepted the Vitest discovery fix because existing `.spec.ts` tests
+were otherwise silently omitted. Rejected candidates were not promoted merely because they contained
+code.
 
 ## Local gate timings
 
@@ -45,6 +54,12 @@ approximately:
 | Nuxt typecheck | 2.40 s |
 | Focused Vitest suite | 0.33 s process time; 12 ms test time |
 | Nuxt production build | 3.61 s |
+
+After adding the room API slice, the integrated host run completed 18 tests across two files in about
+one second; ESLint completed in 0.61 seconds, Nuxt typecheck in 1.93 seconds, and the production build
+in 2.30 seconds. The host currently runs Node 24 while the repository requires Node 22, so local
+verification used Yarn's `--ignore-engines` flag. FastVM workers continue to use the benchmark's
+pinned Node 22 toolchain.
 
 The build system is therefore not the dominant cost in this Vue run. Model-backed inspection and
 editing consumed roughly 238–365 seconds for the small repair contracts and 720 seconds for each
@@ -68,6 +83,16 @@ micro implementation contract.
 8. **Stale build output can create fake failures.** The first integrated lint run reported more than
    4,000 errors from the legacy `.next` directory; removing generated output made every source gate
    green.
+9. **Reconciliation must force-stage only its explicit allowlist.** Git still refused the export when
+   an ignored `node_modules` directory existed, even though generated paths were excluded. The
+   controller now uses forced staging together with explicit generated-output exclusions; 590 Hive
+   tests pass after the fix.
+10. **Test discovery is part of the migration contract.** The inherited Vitest configuration matched
+    `.test.ts` only while accepted Vue tests used `.spec.ts`. The suite appeared green while omitting
+    tests. Discovery now includes both forms and runs 18 tests.
+11. **Provider latency still dominates.** The DeepSeek worker produced a coherent, fully tested room
+    API, but model-backed work took 406.673 seconds while all local gates together took only a few
+    seconds.
 
 ## Required Hive changes before the next wave
 
@@ -79,6 +104,9 @@ micro implementation contract.
 - enforce scope continuously, not only at final reconciliation;
 - record install, model, first mutation, test, build, conflict, review and integration durations as
   separate metrics.
+- prevent generated and ignored build output from entering the signed guest candidate in the first
+  place, rather than filtering it only during reconciliation;
+- validate that every committed test file matches the configured test-discovery patterns.
 
 ## Next benchmark
 
