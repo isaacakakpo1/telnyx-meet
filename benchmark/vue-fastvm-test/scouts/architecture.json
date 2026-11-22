@@ -1,0 +1,598 @@
+{
+  "schema_version": "1.0",
+  "task_id": "scout-vue-architecture",
+  "assignment_id": "assignment-scout-vue-architecture-383e7d92",
+  "candidate_id": "candidate-scout-vue-architecture-383e7d92",
+  "run_id": "scout-vue-architecture-383e7d92",
+  "benchmark_id": "telnyx-meet-vue-fastvm-v1",
+  "base_commit": "63266850e9b5d8115f1377612404a5fa6700ea28",
+  "source_baseline_commit": "4831bd27ef10fb12542b9a187853b94e6b559bea",
+  "frozen_inputs": {
+    "benchmark_dir": "benchmark/vue-fastvm-test",
+    "mission_brief": "benchmark/vue-fastvm-test/mission-brief.json",
+    "acceptance_gates": "benchmark/vue-fastvm-test/acceptance-gates.json",
+    "freeze_manifest": "benchmark/vue-fastvm-test/freeze-manifest.json",
+    "source_baseline": "benchmark/vue-fastvm-test/source-baseline.json"
+  },
+  "instruction_compliance": {
+    "migration_code_written": false,
+    "expected_write_set_observed": ["benchmark/vue-fastvm-test/scouts/architecture.json"],
+    "write_sets_confined_to_observed_write_set": true,
+    "all_acceptance_gate_ids_taken_from_acceptance_gates_json": true,
+    "credential_hygiene": "Report references environment variable NAMES only (for example TELNYX_API_KEY, TELNYX_CALL_CONTROL_API_HOST, NEXT_PUBLIC_BUGSNAG_API_KEY). No secret values, no .env file contents, and no model or CI credentials appear in this document."
+  },
+  "source_architecture": {
+    "framework": "Next.js 12.1.0 pages-router application built with React 17.0.1 and TypeScript in strict mode; one deployment serves both the browser SPA and the HTTP API.",
+    "rendering_stack": "Grommet component library, styled-components for screen-scoped CSS, @fortawesome/react-fontawesome icons, react-hot-toast notifications, react-draggable/react-resize-detector behaviors.",
+    "toolchain": "yarn classic lockfile, eslint (eslint-config-next), no unit/component/server-route/browser test scripts exist in package.json; CI (.github/workflows/ci.yml) only runs install, lint, and build on the declared Node range (>=22.23.4 <23).",
+    "evidence": [
+      "package.json",
+      "next.config.js",
+      "tsconfig.json",
+      ".github/workflows/ci.yml",
+      "benchmark/vue-fastvm-test/source-baseline.json"
+    ]
+  },
+  "server_layout": {
+    "route_pattern": "Each Telnyx upstream operation is a thin Next.js API route under pages/api; routes read secrets only from process.env, propagate a uuid request_id header, report failures through lib/bugsnag.js notify() and utils/helpers.ts transformFetchErrorToBugsnag(), and map upstream status/JSON onto the response.",
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/rooms",
+        "route_file": "pages/api/rooms/index.ts",
+        "upstream_call": "${TELNYX_API_HOST}/rooms",
+        "client_exposes": "room list rows only; no credentials"
+      },
+      {
+        "method": "GET",
+        "path": "/api/rooms/[roomId]",
+        "route_file": "pages/api/rooms/[roomId].ts",
+        "upstream_call": "${TELNYX_API_HOST}/rooms/${roomId}",
+        "client_exposes": "room details only; no credentials"
+      },
+      {
+        "method": "POST",
+        "path": "/api/client_token",
+        "route_file": "pages/api/client_token.ts",
+        "upstream_call": "${TELNYX_API_HOST}/rooms/${room_id}/actions/generate_join_client_token",
+        "client_exposes": "join token and refresh token (token_ttl_secs 60, refresh_token_ttl_secs 3600)"
+      },
+      {
+        "method": "POST",
+        "path": "/api/refresh_client_token",
+        "route_file": "pages/api/refresh_client_token.ts",
+        "upstream_call": "POST refresh to ${TELNYX_API_HOST} rooms action with token_ttl_secs 120; NOTE the route reads req.body.room_id for the URL but the browser (hooks/room.ts) only posts refresh_token, a source quirk the Vue layer must preserve until a regression test proves the intended behavior",
+        "client_exposes": "fresh client token only"
+      },
+      {
+        "method": "POST",
+        "path": "/api/dial_out",
+        "route_file": "pages/api/dial_out.ts",
+        "upstream_call": "${TELNYX_CALL_CONTROL_API_HOST}/dial_out",
+        "client_exposes": "dial-out confirmation only"
+      }
+    ],
+    "environment_variables_names_only": [
+      "TELNYX_API_HOST",
+      "TELNYX_API_KEY",
+      "TELNYX_CALL_CONTROL_API_HOST",
+      "NEXT_PUBLIC_BUGSNAG_API_KEY",
+      "HOSTNAME"
+    ],
+    "evidence": [
+      "pages/api/rooms/index.ts",
+      "pages/api/rooms/[roomId].ts",
+      "pages/api/client_token.ts",
+      "pages/api/refresh_client_token.ts",
+      "pages/api/dial_out.ts",
+      "lib/bugsnag.js",
+      "utils/helpers.ts",
+      ".env.sample"
+    ]
+  },
+  "app_state_model": {
+    "contexts": [
+      {
+        "name": "TelnyxMeetContext",
+        "file": "contexts/TelnyxMeetContext.ts",
+        "role": "Application-wide meeting state: audio/video device IDs and setters, isAudioTrackEnabled/isVideoTrackEnabled and setters, sendNotification (react-hot-toast wrapper in pages/rooms/index.tsx), networkMetrics and setter, unreadMessages ref, isVideoPlaying and setter, optionalFeatures flags derived from query parameters."
+      },
+      {
+        "name": "DebugContext",
+        "file": "contexts/DebugContext.ts",
+        "role": "Loose debug state pair ([state, setState]) carried from hooks/room.ts into pages/_app.tsx; Vue equivalent is a small store slice or composable, not a React context."
+      }
+    ],
+    "local_state_owners": [
+      {
+        "owner": "pages/rooms/index.tsx",
+        "state": "roomId, username, tokens, isReady, device IDs, isAudioTrackEnabled/isVideoTrackEnabled, networkMetrics, isVideoPlaying, error, reconnectCount, optionalFeatures (from router query)."
+      },
+      {
+        "owner": "hooks/room.ts (useRoom)",
+        "state": "Telnyx SDK Room ref, state, clientToken, presenter, participantsByActivity, dominantSpeakerId (with a 5s reset timer and 5s window), messages, plus token refresh interval at TOKEN_TTL-20 seconds."
+      }
+    ],
+    "persistence": "utils/storage.ts wraps localStorage/sessionStorage; keys used: username, audioEnabled, videoEnabled, background_type.",
+    "evidence": [
+      "contexts/TelnyxMeetContext.ts",
+      "contexts/DebugContext.ts",
+      "pages/rooms/index.tsx",
+      "hooks/room.ts",
+      "utils/storage.ts"
+    ]
+  },
+  "video_sdk_boundary": {
+    "current_surface": "@telnyx/video 1.0.1 is imported from three application locations: hooks/room.ts (initialize, Room lifecycle and subscriptions), components/RoomControls/RoomControls.tsx (getDevices, Room/Participant/Stream types for controls), components/MediaPreview/index.tsx (videoDiagnostics). @telnyx/video-processors (VideoProcessor/Camera) is used by utils/virtualBackground.ts; @telnyx/rtc-diagnostics is used in components/MediaPreview/index.tsx.",
+    "listener_surface": [
+      "state_changed",
+      "connected",
+      "disconnected",
+      "participant_joined",
+      "participant_leaving",
+      "participant_left",
+      "stream_published",
+      "stream_unpublished",
+      "track_enabled",
+      "track_disabled",
+      "track_censored",
+      "track_uncensored",
+      "audio_activity",
+      "subscription_started",
+      "subscription_reconfigured",
+      "subscription_ended",
+      "message_received",
+      "network_metrics_report"
+    ],
+    "isolation_assessment": "No adapter or fake exists; the Room ref and its 18 listeners are owned inside the useRoom hook and were never off()-subscribed, never disconnect()-ed on unmount, and the dominant-speaker timer plus token refresh interval are cleared only partially.",
+    "evidence": [
+      "hooks/room.ts",
+      "components/RoomControls/RoomControls.tsx",
+      "components/MediaPreview/index.tsx",
+      "utils/virtualBackground.ts",
+      "package.json"
+    ]
+  },
+  "candidate_nuxt_seams": [
+    {
+      "seam_id": "seam-shell",
+      "maps_from": "pages/_app.tsx, pages/_document.tsx, next.config.js, package.json",
+      "maps_to": "Nuxt 3 app.vue + app.config.ts + server plugin; Bugsnag React error boundary (lib/bugsnag.js, pages/_app.tsx) re-expressed as a Nuxt error handler + Vue errorCaptured; PWA metadata preserved from public/manifest.json, public/icon-192x192.png, public/icon-512x512.png, public/*.webp.",
+      "rationale": [
+        "pages/_app.tsx",
+        "lib/bugsnag.js",
+        "public/manifest.json"
+      ]
+    },
+    {
+      "seam_id": "seam-routes",
+      "maps_from": "pages/index.tsx, pages/rooms/index.tsx, pages/rooms/list.tsx, pages/rooms/[roomId].tsx, pages/404.tsx, pages/_error.tsx",
+      "maps_to": "Nuxt file routing under pages/ (index.vue, rooms/index.vue, rooms/list.vue, rooms/[roomId].vue, error.vue) preserving direct-room-URL query support (client_token, refresh_token) and optional feature flags (audio_control, dial_out, network_metrics, simulcast, diagnostics, auto_reconnect) read from useRoute().query in pages/rooms/index.tsx.",
+      "rationale": [
+        "pages/rooms/index.tsx",
+        "pages/rooms/[roomId].tsx"
+      ]
+    },
+    {
+      "seam_id": "seam-server",
+      "maps_from": "pages/api/**/*.ts",
+      "maps_to": "Nuxt 3 Nitro server routes under server/api (rooms/index.ts, rooms/[roomId].ts, client_token.ts, refresh_client_token.ts, dial_out.ts) with H3 helpers replacing NextApiRequest/NextApiResponse; secrets read via runtimeConfig/process.env exclusively.",
+      "rationale": [
+        "pages/api/client_token.ts",
+        "pages/api/refresh_client_token.ts",
+        "pages/api/dial_out.ts"
+      ]
+    },
+    {
+      "seam_id": "seam-state",
+      "maps_from": "contexts/TelnyxMeetContext.ts, contexts/DebugContext.ts, local useState in pages/rooms/index.tsx",
+      "maps_to": "Pinia stores under stores/ (meet store for device/audio/video flags, network metrics, unread messages, optional features; debug store for the DebugContext pair); sendNotification backed by a Vue toast primitive replacing react-hot-toast.",
+      "rationale": [
+        "contexts/TelnyxMeetContext.ts",
+        "pages/rooms/index.tsx"
+      ]
+    },
+    {
+      "seam_id": "seam-sdk-adapter",
+      "maps_from": "hooks/room.ts, components/RoomControls/RoomControls.tsx SDK usage, components/MediaPreview/index.tsx diagnostics usage",
+      "maps_to": "A typed composable useTelnyxRoom() under composables/ owning initialization, a single listener registration site for all 18 events, token refresh cadence, network-metrics flags, and a guaranteed dispose() that removes listeners, clears timers, disconnects the Room, and frees generated media; @telnyx/video consumers become imports of this composable only.",
+      "rationale": [
+        "hooks/room.ts",
+        "components/RoomControls/RoomControls.tsx"
+      ]
+    },
+    {
+      "seam_id": "seam-components",
+      "maps_from": "components/** (React + Grommet + styled-components)",
+      "maps_to": "Vue 3 SFCs with Composition API; media preview (components/MediaPreview/index.tsx, MediaControlBar.tsx) becomes a preview composable plus component; grid/presentation layout (components/GridLayout.tsx, ScreenSharingLayout.tsx, Feed/Feed.tsx, Feeds.tsx), chat, participants, invite, WebRTC stats and network metrics views become Vue components consuming the composable state instead of the SDK directly.",
+      "rationale": [
+        "components/Room.tsx",
+        "components/MediaPreview/index.tsx",
+        "components/Feed/Feed.tsx"
+      ]
+    },
+    {
+      "seam_id": "seam-media",
+      "maps_from": "utils/userMedia.ts, utils/virtualBackground.ts, utils/helpers.ts (browser detection), components/MediaPreview/MediaControlBar.tsx",
+      "maps_to": "Composition-layer composable(s) for getUserMedia constraint building (getMediaConstraints/getUserMedia in utils/userMedia.ts), device enumeration, mixed audio (components/RoomAudio.tsx), and virtual-background VideoProcessor/Camera lifecycle from utils/virtualBackground.ts with deterministic track/VideoProcessor stop.",
+      "rationale": [
+        "utils/userMedia.ts",
+        "utils/virtualBackground.ts",
+        "components/RoomAudio.tsx"
+      ]
+    }
+  ],
+  "lifecycle_gaps_to_close": [
+    {
+      "gap": "No off()/disconnect() for the 18 SDK listeners owned in hooks/room.ts; listener removal, interval clearing (token refresh, dominant-speaker timeout), and track/VideoProcessor stops must be centralized in the Vue composable teardown.",
+      "evidence": [
+        "hooks/room.ts"
+      ]
+    },
+    {
+      "gap": "Direct SDK method calls from UI layers (components/RoomControls/RoomControls.tsx calls addStream/removeStream/updateStream/disconnect; pages/rooms/index.tsx fetches /api/refresh_client_token directly) bypass any single ownership boundary; the Vue boundary must funnel every SDK and token operation through the composable store.",
+      "evidence": [
+        "components/RoomControls/RoomControls.tsx",
+        "hooks/room.ts",
+        "pages/rooms/index.tsx"
+      ]
+    }
+  ],
+  "work_packages": [
+    {
+      "id": "wp-shell",
+      "title": "Stand up Nuxt 3/Vue 3/TypeScript shell and clean-build toolchain",
+      "objective": "Replace the Next.js shell (pages/_app.tsx, pages/_document.tsx, next.config.js, package.json) with a Nuxt 3 app: nuxt.config.ts, app.vue, strict tsconfig, eslint + prettier config derived from the existing .eslintrc.json/.prettierrc, Vitest/Vue Test Utils/Playwright setup, and CI scripts for install/build/typecheck/lint/unit/component/server-route/smoke. Preserve declared Node >=22.23.4 <23, public/ PWA assets, and styles/globals.css.",
+      "depends_on": [],
+      "read_paths": [
+        "package.json",
+        "next.config.js",
+        "tsconfig.json",
+        "pages/_app.tsx",
+        "pages/_document.tsx",
+        ".eslintrc.json",
+        ".prettierrc",
+        "styles/globals.css",
+        "public/manifest.json",
+        ".github/workflows/ci.yml"
+      ],
+      "write_paths": [
+        "package.json",
+        "nuxt.config.ts",
+        "tsconfig.json",
+        "eslint.config.mjs",
+        "vitest.config.ts",
+        "app.vue",
+        ".github/workflows/ci.yml"
+      ],
+      "test_plan": [
+        "Clean checkout installs from the committed lockfile (yarn install --frozen-lockfile).",
+        "yarn build, yarn typecheck, yarn lint exit 0 with zero diagnostics.",
+        "Smoke: root route renders AppHeader and demo note against mocked server responses."
+      ],
+      "done_when": "Repository builds, type-checks, and lints from a clean install on the declared Node range with no Next.js/React runtime left in production dependencies.",
+      "acceptance_gate_ids": ["vue-architecture", "clean-build-and-static-quality"]
+    },
+    {
+      "id": "wp-rooms-surface",
+      "title": "Port landing, room list, and room-lookup pages to Nuxt routes",
+      "objective": "Migrate pages/index.tsx, pages/rooms/list.tsx, and the rooms table/list UI to Vue SFC pages under pages/ (plus error.vue and 404 handling) with data-testid hooks preserved (btn-select-room), fetching /api/rooms client-side, and usable desktop and narrow-viewport layouts replacing Grommet DataTable/Box/Text markup.",
+      "depends_on": ["wp-shell"],
+      "read_paths": [
+        "pages/index.tsx",
+        "pages/rooms/list.tsx",
+        "pages/404.tsx",
+        "pages/_error.tsx",
+        "components/AppHeader.tsx",
+        "components/Pagination.tsx"
+      ],
+      "write_paths": [
+        "pages/index.vue",
+        "pages/rooms/list.vue",
+        "pages/error.vue",
+        "components/AppHeader.vue",
+        "components/Pagination.vue"
+      ],
+      "test_plan": [
+        "Component tests: room table renders from mocked /api/rooms payload, presents unique_name, id link to /rooms/[id], max participants, record audio/video.",
+        "Component tests: empty-room state shows the 'No rooms found' notice; loading state shown before the fetch resolves.",
+        "Browser smoke: landing page link navigates to the rooms page."
+      ],
+      "done_when": "Landing and room list pages render in Nuxt with tested success, empty, and loading states and no React/Grommet imports.",
+      "acceptance_gate_ids": ["meeting-workflow-regression", "responsive-visual-evidence"]
+    },
+    {
+      "id": "wp-server-api",
+      "title": "Rebuild the five Telnyx server routes as Nuxt server routes with validation and error mapping",
+      "objective": "Implement server/api routes for room list (GET), room lookup (GET by id), join client token (POST), refresh client token (POST), and dial-out (POST) mirroring pages/api/** semantics: uuid request_id propagation, method guards returning 405 with Allow headers, body field validation, upstream status/JSON mapping, and error reporting through the ported bugsnag helper. Keep TELNYX_API_KEY, TELNYX_API_HOST, and TELNYX_CALL_CONTROL_API_HOST strictly server-side via process.env/runtimeConfig.",
+      "depends_on": ["wp-shell"],
+      "read_paths": [
+        "pages/api/rooms/index.ts",
+        "pages/api/rooms/[roomId].ts",
+        "pages/api/client_token.ts",
+        "pages/api/refresh_client_token.ts",
+        "pages/api/dial_out.ts",
+        "lib/bugsnag.js",
+        "utils/helpers.ts",
+        ".env.sample"
+      ],
+      "write_paths": [
+        "server/api/rooms/index.ts",
+        "server/api/rooms/[roomId].ts",
+        "server/api/client_token.ts",
+        "server/api/refresh_client_token.ts",
+        "server/api/dial_out.ts",
+        "server/utils/bugsnag.ts"
+      ],
+      "test_plan": [
+        "Server-route tests with a mocked upstream: success, 4xx, 5xx, missing body fields, and wrong-method (405 + Allow) for every one of the five routes.",
+        "Secret-scan test: asserted that Bearer credentials are taken only from server process.env and no route references credential string literals.",
+        "Mapping test: upstream error body message surfaces verbatim in the response, matching pages/api behavior."
+      ],
+      "done_when": "All five server routes pass success/failure/validation tests and the static scan proves browser code and emitted payloads carry no Telnyx credentials.",
+      "acceptance_gate_ids": ["server-secret-boundary", "meeting-workflow-regression"]
+    },
+    {
+      "id": "wp-sdk-adapter",
+      "title": "Create the typed useTelnyxRoom composable covering full SDK lifecycle, alongside deterministic test doubles",
+      "objective": "Extract hooks/room.ts into composables/useTelnyxRoom.ts: initialization via initialize() (roomId, clientToken, context, enableMessages), connected-state subscription management (addSubscription for remote streams), presenter tracking from stream key 'presentation', active speaker and participantsByActivity computation, message recording, network-metrics report toggling, token refresh cadence (TOKEN_TTL minus 20s) calling /api/refresh_client_token, and a dispose() that removes every one of the 18 listeners, clears both timers, and disconnects the Room. Expose a typed TelnyxRoom model. Deliver together a deterministic fake of @telnyx/video (tests/fakes/telnyx-video.ts) with scriptable emission of the 18-event surface and listener add/off/inspect helpers, plus a media test double (tests/fakes/media.ts) covering getUserMedia, MediaStreamTrack stop, enumerateDevices, and a fake VideoProcessor/Camera for virtual-background tests; all doubles stay under tests/ and never enter production code paths.",
+      "depends_on": ["wp-shell"],
+      "read_paths": [
+        "hooks/room.ts",
+        "components/Room.tsx",
+        "pages/rooms/index.tsx",
+        "benchmark/vue-fastvm-test/acceptance-gates.json"
+      ],
+      "write_paths": [
+        "composables/useTelnyxRoom.ts",
+        "composables/types/telnyx-room.ts",
+        "tests/fakes/telnyx-video.ts",
+        "tests/fakes/media.ts",
+        "tests/setup.ts"
+      ],
+      "test_plan": [
+        "Unit tests against the SDK fake: initialize, connect, and each of the 18 events update the exposed reactive state exactly once.",
+        "Listener accounting test: dispose() removes all registered handlers (fake listener count returns to 0) and clearInterval/clearTimeout spies report zero live timers.",
+        "Token refresh test with fake timers: refresh fires at the configured cadence only while state.status is connected.",
+        "Reconnect test: a disconnected(reason, state) network_error path surfaces the onDisconnected callback for the page-layer retry logic.",
+        "Fake contract test: the fake emits every event in the 18-event surface and subscribers receive the documented payload shape.",
+        "Double hygiene test: media fakes stop() deterministically and appear in no production import graph (only under tests/)."
+      ],
+      "done_when": "The composable is covered by deterministic fake-driven unit tests proving typed events, subscription behavior, and cleanup, with no raw @telnyx/video listener registration outside the composable, and the fake + media doubles are importable by every test suite without live credentials.",
+      "acceptance_gate_ids": ["video-sdk-contract", "resource-cleanup", "meeting-workflow-regression"]
+    },
+    {
+      "id": "wp-meet-state",
+      "title": "Migrate application state from React contexts to a Pinia meet store",
+      "objective": "Replace contexts/TelnyxMeetContext.ts and contexts/DebugContext.ts with a Pinia store (stores/meet.ts) carrying audio/video device IDs and setters, isAudioTrackEnabled/isVideoTrackEnabled, isVideoPlaying, networkMetrics, unread messages, optional feature flags parsed from route query (audio_control, dial_out, network_metrics, simulcast, diagnostics, auto_reconnect as in pages/rooms/index.tsx), and a sendNotification action backed by a Vue toast replacing react-hot-toast.",
+      "depends_on": ["wp-shell", "wp-sdk-adapter"],
+      "read_paths": [
+        "contexts/TelnyxMeetContext.ts",
+        "contexts/DebugContext.ts",
+        "pages/rooms/index.tsx",
+        "hooks/room.ts",
+        "utils/storage.ts"
+      ],
+      "write_paths": [
+        "stores/meet.ts",
+        "composables/useToasts.ts"
+      ],
+      "test_plan": [
+        "Store unit tests: each state slice mutates reactively and the optional-features parser maps 'true' query strings exactly as the source does.",
+        "Action tests: sendNotification queues toasts; unread messages accumulate in arrival order.",
+        "Persistence test: username and device preferences round-trip through the localStorage helpers in utils/storage.ts."
+      ],
+      "done_when": "No React context modules remain, all durable meeting state lives in the store, and store unit tests prove flags, notifications, and unread messages behave as the source did.",
+      "acceptance_gate_ids": ["vue-architecture", "meeting-workflow-regression"]
+    },
+    {
+      "id": "wp-join-flow",
+      "title": "Port the room join page, token flow, and auto-reconnect logic",
+      "objective": "Migrate pages/rooms/index.tsx and components/JoinRoom.tsx to pages/rooms/index.vue (plus a direct-room route at pages/rooms/[roomId].vue ported from pages/rooms/[roomId].tsx): room UUID + username form, supplied client/refresh token query support, /api/client_token fetch on join, audio permission check with ErrorDialog on denial, and auto_reconnect handling (up to MAX_RECONNECT_TIME) wired to the useTelnyxRoom onDisconnected callback.",
+      "depends_on": ["wp-sdk-adapter", "wp-meet-state"],
+      "read_paths": [
+        "pages/rooms/index.tsx",
+        "pages/rooms/[roomId].tsx",
+        "components/JoinRoom.tsx",
+        "components/ErrorDialog.tsx",
+        "components/MediaPreview/helper.tsx"
+      ],
+      "write_paths": [
+        "pages/rooms/index.vue",
+        "pages/rooms/[roomId].vue",
+        "components/JoinRoom.vue",
+        "components/ErrorDialog.vue"
+      ],
+      "test_plan": [
+        "Component tests: join fetches /api/client_token only when query tokens are absent; join button disabled without roomId/username.",
+        "Component tests: NotAllowedError from the audio permission probe opens the mediaBlocked ErrorDialog path.",
+        "Component tests: with auto_reconnect=true, three network_error disconnections rejoin and the fourth gives up (MAX_RECONNECT_TIME=3).",
+        "Component tests: direct room URL with client_token and refresh_token bypasses the token API."
+      ],
+      "done_when": "Join, direct-URL, permission-denial, error, and auto-reconnect flows pass component tests with mocked HTTP and media boundaries.",
+      "acceptance_gate_ids": ["meeting-workflow-regression", "automated-tests"]
+    },
+    {
+      "id": "wp-media-preview",
+      "title": "Port media preview, device selection, and diagnostics into a Vue preview system",
+      "objective": "Migrate components/MediaPreview/index.tsx, MediaControlBar.tsx, helper.tsx, and utils/userMedia.ts into a Vue preview composable (composables/useMediaPreview.ts) plus components/media-preview.vue and components/media-control-bar.vue: getUserMedia constraint building (simulcast-aware), camera/microphone toggles, input/output device menus, diagnostics launch via @telnyx/rtc-diagnostics, and media-error handling, with deterministic track start/stop.",
+      "depends_on": ["wp-meet-state"],
+      "read_paths": [
+        "components/MediaPreview/index.tsx",
+        "components/MediaPreview/MediaControlBar.tsx",
+        "components/MediaPreview/helper.tsx",
+        "utils/userMedia.ts"
+      ],
+      "write_paths": [
+        "composables/useMediaPreview.ts",
+        "components/media-preview.vue",
+        "components/media-control-bar.vue"
+      ],
+      "test_plan": [
+        "Component tests: preview renders local tracks from the fake MediaStream; toggling camera/mic changes enabled state in the meet store.",
+        "Component tests: switching audio/video input devices re-acquires media with the constraint deviceId; simulcast flag adds 1280x720 video constraints.",
+        "Cleanup test: unmount stops every fake MediaStreamTrack exactly once (no leaked tracks).",
+        "Error test: MediaDeviceErrors mapping (mediaBlocked, mediaUnknown) surfaces through the ErrorDialog path."
+      ],
+      "done_when": "Pre-join preview supports toggles, device selection, simulcast constraints, and diagnostics launch with all media resources released on unmount in tests.",
+      "acceptance_gate_ids": ["meeting-workflow-regression", "resource-cleanup"]
+    },
+    {
+      "id": "wp-room-controls",
+      "title": "Port the in-meeting control bar (camera, mic, devices, share, chat, leave)",
+      "objective": "Migrate components/RoomControls/RoomControls.tsx, DeviceMenuList.tsx, ControlButton.tsx, ChatButton.tsx, and styles.ts to components/room-controls.vue with a composables/useRoomControls.ts: camera/microphone toggles, input/output device menus (getDevices), screen share add/remove stream, mixed-audio toggle, chat open/close, participants and invite panel toggles, leave room calling the composable disconnect, and notification-driven error dialogs. Route panel widths for narrow viewports.",
+      "depends_on": ["wp-sdk-adapter", "wp-media-preview"],
+      "read_paths": [
+        "components/RoomControls/RoomControls.tsx",
+        "components/RoomControls/DeviceMenuList.tsx",
+        "components/RoomControls/ControlButton.tsx",
+        "components/RoomControls/ChatButton.tsx",
+        "components/RoomControls/styles.ts",
+        "components/MenuList.tsx"
+      ],
+      "write_paths": [
+        "components/room-controls.vue",
+        "components/device-menu-list.vue",
+        "components/control-button.vue",
+        "components/chat-button.vue",
+        "composables/useRoomControls.ts"
+      ],
+      "test_plan": [
+        "Component tests: camera/mic toggles call updateStream on the fake room and update the meet store flags.",
+        "Component tests: device menu lists enumerate fake devices; selecting one re-acquires media with the deviceId.",
+        "Component tests: screen share adds a 'presentation' stream to the fake room; the presenter id is exposed for the layout.",
+        "Component tests: leave button invokes disconnect() and the page layer observes disconnection.",
+        "Narrow-viewport test: control bar reflows without horizontal scroll at the small breakpoint."
+      ],
+      "done_when": "Every in-meeting control maps to a tested composable action and the component renders against the fake room without raw SDK imports.",
+      "acceptance_gate_ids": ["meeting-workflow-regression", "resource-cleanup", "responsive-visual-evidence"]
+    },
+    {
+      "id": "wp-feeds-layout",
+      "title": "Port video feeds, grid, presentation layout, and participant list",
+      "objective": "Migrate components/Feeds.tsx, Feed/Feed.tsx, VideoTrack.tsx, AudioTrack.tsx, RoomAudio.tsx, GridLayout.tsx, ScreenSharingLayout.tsx, and ParticipantsList.tsx to Vue SFCs (components/feeds.vue, components/video-track.vue, components/audio-track.vue, components/grid-layout.vue, components/screen-sharing-layout.vue, components/participants-list.vue) driven by useTelnyxRoom state: participant/active-speaker ordering from participantsByActivity and dominantSpeakerId, presenter-driven layout switch, per-stream WebRTC stats overlay hooks, and mixed-audio rendering.",
+      "depends_on": ["wp-sdk-adapter", "wp-meet-state"],
+      "read_paths": [
+        "components/Feeds.tsx",
+        "components/Feed/Feed.tsx",
+        "components/Feed/index.tsx",
+        "components/VideoTrack.tsx",
+        "components/AudioTrack.tsx",
+        "components/RoomAudio.tsx",
+        "components/GridLayout.tsx",
+        "components/ScreenSharingLayout.tsx",
+        "components/ParticipantsList.tsx",
+        "hooks/room.ts"
+      ],
+      "write_paths": [
+        "components/feeds.vue",
+        "components/video-track.vue",
+        "components/audio-track.vue",
+        "components/grid-layout.vue",
+        "components/screen-sharing-layout.vue",
+        "components/participants-list.vue"
+      ],
+      "test_plan": [
+        "Component tests: 4 fake participants populate tiles in activity order; a stream_published event for key 'presentation' switches to the presentation layout for the presenter id.",
+        "Component tests: audio_activity updates dominantSpeakerId and reorders the grid via participantsByActivity.",
+        "Component tests: VideoTrack binds a fake rendered stream and calls addSubscription for remote streams on the fake room.",
+        "Responsive test: participant grid and presentation layouts produce desktop and narrow-viewport DOM structures (table/screenshot evidence for static review).",
+        "Cleanup test: track end/unmount removes media elements and object URLs deterministically."
+      ],
+      "done_when": "Grid, presentation, and participant views render fake-driven state changes and media resources are disposed on unmount in tests.",
+      "acceptance_gate_ids": ["meeting-workflow-regression", "resource-cleanup", "responsive-visual-evidence"]
+    },
+    {
+      "id": "wp-chat-invite",
+      "title": "Port chat, participant invite/dial-out, and notification surfaces",
+      "objective": "Migrate components/Chat.tsx and components/InviteParticipant.tsx to components/chat.vue and components/invite-participant.vue: message list from the room composable messages, send via composable sendMessage, 1:1 vs group recipient behavior, auto-scroll and unread counts; invite flow parsing phone numbers (utils/parsePhoneNumber.ts E.164) and POSTing /api/dial_out, tracking invited participants from participant_joined (as in components/Room.tsx onParticipantJoined).",
+      "depends_on": ["wp-meet-state"],
+      "read_paths": [
+        "components/Chat.tsx",
+        "components/InviteParticipant.tsx",
+        "components/Room.tsx",
+        "utils/parsePhoneNumber.ts",
+        "pages/rooms/index.tsx"
+      ],
+      "write_paths": [
+        "components/chat.vue",
+        "components/invite-participant.vue"
+      ],
+      "test_plan": [
+        "Component tests: message_received appends to the room composable messages and the chat list renders sender username from participant context.",
+        "Component tests: sending a message calls the fake room sendMessage with the resolved recipients (null for broadcast).",
+        "Component tests: dial_out form validates the phone input, formats E.164, and POSTs /api/dial_out with video_room_context; success hides the form and marks the invitee connected when the fake emits participant_joined.",
+        "Component tests: unread badge clears when the chat panel is opened."
+      ],
+      "done_when": "Chat and invite/dial-out work end-to-end against the fake room and mocked server route, with username resolution and unread behavior tested.",
+      "acceptance_gate_ids": ["meeting-workflow-regression", "server-secret-boundary"]
+    },
+    {
+      "id": "wp-metrics-diagnostics",
+      "title": "Port WebRTC stats, network metrics, and bitrate views",
+      "objective": "Migrate components/WebRTCStats.tsx, NetworkMetricsMonitor.tsx, and VideoBitrate.tsx to components/web-rtc-stats.vue, components/network-metrics-monitor.vue, and components/video-bitrate.vue reading getWebRTCStatsForStream and network_metrics_report state from the composable (gated by the network_metrics feature flag as in hooks/room.ts and pages/rooms/index.tsx), including the fake-driven stats table rendering.",
+      "depends_on": ["wp-sdk-adapter", "wp-meet-state"],
+      "read_paths": [
+        "components/WebRTCStats.tsx",
+        "components/NetworkMetricsMonitor.tsx",
+        "components/VideoBitrate.tsx",
+        "hooks/room.ts",
+        "components/RoomControls/RoomControls.tsx"
+      ],
+      "write_paths": [
+        "components/web-rtc-stats.vue",
+        "components/network-metrics-monitor.vue",
+        "components/video-bitrate.vue"
+      ],
+      "test_plan": [
+        "Component tests: network_metrics_report state renders sender/receiver metric rows; disabled flag hides the view.",
+        "Component tests: WebRTC stats overlay calls getWebRTCStatsForStream on the fake for a participant stream and renders the result.",
+        "Unit test: bitrate formatting matches the source layout (VideoBitrate.tsx) for sample metric values."
+      ],
+      "done_when": "Stats and metrics views render fake-driven data behind the feature flag, with deterministic unit and component tests.",
+      "acceptance_gate_ids": ["meeting-workflow-regression", "automated-tests"]
+    },
+    {
+      "id": "wp-verification-docs",
+      "title": "Compose browser smoke suites, credential hygiene, and migration documentation",
+      "objective": "Add Playwright browser-smoke flows against a mocked upstream (landing, room list, join pre-join, connected meeting with fake participants, presentation, chat, error and 404 states) plus desktop and narrow-viewport screenshot captures; add CI credential-hygiene scan (no tracked secret-bearing files, no emitted secrets in logs); and document architecture, behavior parity matrix, environment and security notes, clean build instructions, test instructions, and migration decisions in docs/.",
+      "depends_on": ["wp-rooms-surface", "wp-join-flow", "wp-feeds-layout", "wp-metrics-diagnostics"],
+      "read_paths": [
+        "benchmark/vue-fastvm-test/mission-brief.json",
+        "benchmark/vue-fastvm-test/acceptance-gates.json",
+        "pages/index.tsx",
+        "components/Room.tsx",
+        "hooks/room.ts",
+        ".env.sample",
+        "README.md"
+      ],
+      "write_paths": [
+        "tests/e2e/landing.spec.ts",
+        "tests/e2e/rooms.spec.ts",
+        "tests/e2e/join.spec.ts",
+        "tests/e2e/meeting.spec.ts",
+        "tests/e2e/screenshots.spec.ts",
+        "docs/architecture.md",
+        "docs/behavior-parity.md",
+        "docs/environment-security.md",
+        "docs/build-and-test.md",
+        "docs/migration-notes.md"
+      ],
+      "test_plan": [
+        "Playwright smoke: each flow above passes headless with no live Telnyx credentials, using the mocked upstream and SDK fake.",
+        "Screenshot suite: captures desktop and narrow-viewport states for landing, pre-join, connected meeting, participant panel, chat, presentation, and error states into a reviewable artifacts directory.",
+        "Hygiene scan: asserts .env files and credentials are git-ignored and no tracked file contains secret-bearing content.",
+        "Doc completeness check: every required doc file exists and links to source paths and test files."
+      ],
+      "done_when": "Browser smoke and screenshot suites pass in CI, the hygiene scan is clean, and the five documentation pages satisfy the documentation gate.",
+      "acceptance_gate_ids": ["meeting-workflow-regression", "responsive-visual-evidence", "credential-hygiene", "documentation"]
+    }
+  ],
+  "work_packages_note": "Exactly twelve independently testable work packages. The deterministic @telnyx/video fake and media test doubles are delivered as part of wp-sdk-adapter so that the consumer of the boundary (the 18-listener surface of hooks/room.ts) is verified in the same package, keeping the graph small and dependency-free at that boundary rather than forcing an extra package layer.",
+  "reading_plan_for_validation": {
+    "parse_json": "python3 -c \"import json; json.load(open('benchmark/vue-fastvm-test/scouts/architecture.json'))\"",
+    "path_evidence": "Every cited path (for example pages/api/client_token.ts, hooks/room.ts) must resolve via `git ls-files | grep` in this repository at base commit 63266850e9b5d8115f1377612404a5fa6700ea28.",
+    "dependency_ids": "Every depends_on value must equal an id defined in work_packages.",
+    "gate_ids": "Every acceptance_gate_ids entry must appear in benchmark/vue-fastvm-test/acceptance-gates.json required_checks[].id."
+  }
+}

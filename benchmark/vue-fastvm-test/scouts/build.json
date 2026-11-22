@@ -1,0 +1,251 @@
+{
+  "schema_version": "1.0",
+  "task_id": "scout-vue-build",
+  "run_id": "scout-vue-build-08fe325c",
+  "candidate_id": "candidate-scout-vue-build-08fe325c",
+  "assignment_id": "assignment-scout-vue-build-08fe325c",
+  "generated_at": "2026-11-22",
+  "base_commit": "4831bd27ef10fb12542b9a187853b94e6b559bea",
+  "repo_commit_at_inspection": "63266850e9b5d8115f1377612404a5fa6700ea28",
+  "scope": {
+    "read": [
+      "package.json",
+      "yarn.lock",
+      "next.config.js",
+      "tsconfig.json",
+      "pages/api",
+      "public",
+      ".github",
+      ".env.sample",
+      ".nvmrc",
+      ".babelrc",
+      ".eslintrc.json",
+      ".gitignore",
+      "benchmark/vue-fastvm-test"
+    ],
+    "write": [
+      "benchmark/vue-fastvm-test/scouts/build.json"
+    ],
+    "note": "Build-system scout only. No migration code was implemented, no dependencies were changed, no lockfile was regenerated, no tracked file other than this artifact was modified."
+  },
+  "reproducible_baseline": {
+    "declared_node": "package.json engines: >=22.23.4 <23; .nvmrc pins v22.23.4; CI uses 22.23.4",
+    "lockfile": "yarn.lock (Yarn v1)",
+    "install_command": "yarn install --frozen-lockfile (source-baseline.json ran it on Node v24.13.0 with --ignore-engines and it passed in 16.51s)",
+    "framework": "Next.js 12.1.0 + React 17.0.1 (pages router mode, Pages only, no App Router)",
+    "typescript": "typescript ^4.1.3 in devDependencies; tsconfig has strict:true and target es5; @types/react ^17 and @types/node 18",
+    "scripts": {
+      "dev": "next dev",
+      "build": "next build",
+      "build:pwa": "NODE_ENV=production next build",
+      "lint": "next lint --max-warnings=0",
+      "test": "none defined",
+      "typecheck": "none defined (no explicit type-check script; type-checking is implicit via next build)"
+    },
+    "ci": {
+      "file": ".github/workflows/ci.yml",
+      "trigger": "on: [pull_request]",
+      "node_pin": "22.23.4 (via actions/setup-node@v1)",
+      "actions": [
+        "actions/checkout@v2",
+        "actions/setup-node@v1"
+      ],
+      "jobs": [
+        "single build job that runs: yarn install --frozen-lockfile -> yarn lint -> yarn build"
+      ],
+      "missing_gates": [
+        "no test step (no test script at all)",
+        "no explicit type-check (relies on next build)",
+        "no PWA build artifact check",
+        "no matrix; single Node version only",
+        "actions are on older majors (v2/v1 checkout+setup-node, not latest majors)"
+      ]
+    },
+    "baseline_evidence_citations": [
+      "benchmark/vue-fastvm-test/source-baseline.json: install passed 16.51s, lint passed 0 warnings, build passed 35.92s",
+      "package.json: engines block and full dependency list"
+    ]
+  },
+  "node_X_constraint_notes": [
+    "base repo declares Node >=22.23.4 <23 in package.json engines — this is a hard project policy (not an upstream framework minimum)",
+    "next 12.1.0 package manifest self-declares engines node >=12.22.0 (verified by fetching the published tarball during this scout run); the <23 upper bound is therefore the project's own pin, not something Next requires, and can be re-declared freely in the Nuxt 3 package.json",
+    "source-baseline.json notes the host did not have Node 22 installed and ran with --ignore-engines; the scout flags this as a clean-environment gap, not as an endorse of running the benchmark off-range",
+    "Nuxt 3 does not mandate a specific Node version and supports Node 22; the repo's engines block >=22.23.4 <23 is project policy, not a framework floor. No Node downgrade is required by the migration. The scout does not assume whether the upper <23 bound is retained or widened — that is a work-package decision for WP-1."
+  ],
+  "safe_nuxt3_topology": {
+    "framework": "Nuxt 3 (Vite-based, Nitro server engine) with Vue 3 Composition API and strict TypeScript",
+    "directory_rationale": [
+      "pages/*.tsx (including all API routes under pages/api/) are all replaced by Nuxt's pages/ + server/ split, so the API directory must move to server/api/ to match Nitro conventions and keep the server-only credential boundary explicit",
+      "contexts/TelnyxMeetContext.ts and contexts/DebugContext.ts map to composables/ + stores/ (a reactive module or provide/inject also works)",
+      "utils/ (parsePhoneNumber.ts, storage.ts, userMedia.ts, virtualBackground.ts, helpers.ts) all import browser/globals-free logic, but helpers.ts specifically imports Notify from lib/bugsnag.js — that import is safe only because Bugsnag's notify() no-ops if no API key is configured, and the scout cannot verify that at build time without a rebuild. Do not assume no split is required; verify at migration time.",
+      "components/ are migrated to .vue SFCs; styled-components usage must be replaced because accepted scopes say no styled-components runtime"
+    ],
+    "api_route_mapping": {
+      "pages/api/rooms/index.ts": "server/api/rooms/index.get.ts",
+      "pages/api/rooms/[roomId].ts": "server/api/rooms/[roomId].get.ts",
+      "pages/api/client_token.ts": "server/api/client_token.post.ts",
+      "pages/api/refresh_client_token.ts": "server/api/refresh_client_token.post.ts",
+      "pages/api/dial_out.ts": "server/api/dial_out.post.ts"
+    },
+    "pwa_topology": {
+      "assets": "public/manifest.json, public/icon-192x192.png, public/icon-512x512.png stay at the same public path; the PWA is built with NODE_ENV=production (build:pwa script). This scout did not read next.config.js for a workbox/sw.js block because it was only partially quoted in the mission context — the scout cannot confirm whether a service worker is emitted today without a full build, only that .gitignore already ignores public/sw.js and workbox-*.js. If Nuxt PWA output is needed, @vite-pwa/nuxt or a manually-authored sw/ module is a decision for the topology package, not this build-system scope."
+    },
+    "state_courses": [
+      "TelnyxMeetContext.ts and DebugContext.ts are currently React contexts wrapping React state; the Nuxt replacement is either (a) a Nuxt store (Pinia is not present in the current dependency set, so adding it is a new dependency decision) for TelnyxMeetContext and a simple ref for DebugContext, or (b) provide/inject with a composable that holds reactive refs — choice is a design decision outside this scout's build-system scope, but the scout flags it as a write-set boundary: the replacement files live under stores/ or composables/, not contexts/"
+    ]
+  },
+  "dependency_replacements": {
+    "react_runtime_to_remove": [
+      "react", "react-dom", "grommet", "styled-components",
+      "@fortawesome/react-fontawesome", "react-copy-to-clipboard", "react-draggable",
+      "react-hot-toast", "react-resize-detector"
+    ],
+    "next_runtime_to_remove": [
+      "next", "@zeit/next-source-maps", "next-env.d.ts (framework-generated, deleted with the Next.js stack)"
+    ],
+    "framework_to_add": [
+      "vue", "nuxt"
+    ],
+    "puppeteer_observation": "puppeteer ^23.1.0 is a production dependency today; this scout's read of pages/, components/, utils/, hooks/, .github/workflows/ and the package.json scripts found no invocation of it and no relevant devtool in next.config.js — it is carried as an apparently unused/heavy production dep. Dropping it or moving it to devDependencies is a legitimate part of the dependency-cleanup package, but the scout flags it as an observation, not as a forced change, because the workspace may use it in a way the scout did not cover.",
+    "bugsnag_adapter_change": {
+      "current": "@bugsnag/plugin-react (React-specific integration) + webpack-bugsnag-plugins + @zeit/next-source-maps (error-reporting stack whose source-map upload is baked into next.config.js webpack handling)",
+      "note": "There is no drop-in Nuxt/Web-vue equivalent for the webpack-bugsnag-plugins source-map uploader; the migration should either (a) keep @bugsnag/js and drop the automated source-map uploader (error stack traces become less readable, which is a real behavior tradeoff) or (b) find an equivalent uploader for Nuxt's .output/. The scout flags this as an explicit judgment boundary, not as a default-drop."
+    },
+    "keep_as_is": [
+      "@telnyx/video 1.0.1 (pinned, no semantic drift in the migration) — browser-only SDK; the Nuxt 3 SSR nitro layer must not import it unguarded at top-level in any file SSR-rendered; the mission brief explicitly says the boundary must be typed and lifecycle-safe, which implies the scout's 'keep as is' does not mean keep as-is at the import site — a thin typed adapter (see mission-brief included_scope item 4) is required to wrap it behind composables and ensure no SSR access. That wrapper is out of the build-scoped work packages but is a prerequisite the build-scoped package must assume when it removes the old direct imports.",
+      "@telnyx/rtc-diagnostics", "@telnyx/video-processors",
+      "bowser, libphonenumber-js, memory-cache, uuid, webrtc-adapter"
+    ],
+    "lockfile_constraint": "yarn.lock is a Yarn v1 lockfile; Nuxt 3 works with Yarn v1 but Yarn berry (v3/v4, PnP or node_modules linker) is the modern default. If the venue keeps Yarn v1, the lockfile must be fully regenerated after dependency changes — the scout does not pre-generate it, only records this constraint."
+  },
+  "server_only_credential_boundary": {
+    "invariant": "TELNYX_API_KEY and TELNYX_CALL_CONTROL_API_HOST are required by server routes only and must never appear in any client-visible config, env sample, or bundle output",
+    "current_state": {
+      "server_reads": [
+        "pages/api/rooms/index.ts: process.env.TELNYX_API_KEY, process.env.TELNYX_API_HOST",
+        "pages/api/rooms/[roomId].ts: process.env.TELNYX_API_KEY, process.env.TELNYX_API_HOST",
+        "pages/api/client_token.ts: process.env.TELNYX_API_KEY, process.env.TELNYX_API_HOST",
+        "pages/api/refresh_client_token.ts: process.env.TELNYX_API_HOST only (the browser supplies the refresh token upstream; this route carries no Authorization header, unlike the other token route)",
+        "pages/api/dial_out.ts: process.env.TELNYX_CALL_CONTROL_API_HOST"
+      ],
+      "client_exposure": "none found in the mission-visible codebase; .env.sample has empty values only",
+      "source_baseline_confirms": "source-baseline.json confirms install/lint/build all ran cleanly with no secret present in source"
+    },
+    "nuxt3_binding": "In Nuxt, runtimeConfig private keys bind server-side only: useRuntimeConfig().telnxApiKey is server-bound and nuxt.config.ts must set envKey: 'TELNYX_API_KEY' so it reads process.env at server runtime, never baked into a client bundle",
+    "credential_claims_policy": "No value from .env.sample or any real env variable is copied into this scout artifact. Gloable variable names and host defaults (api.telnyx.com/v2 from .env.sample) are recorded; if .env.sample ever holds a real key it must be flagged and the value never copied.",
+    "no_secret_copied": "true"
+  },
+  "route_migration_concerns": [
+    "pages/api/rooms/[roomId].ts is a dynamic route on roomId; Nuxt's server/api/rooms/[roomId].get.ts preserves this 1:1",
+    "pages/api/client_token.ts checks req.body.room_id but pages/api/refresh_client_token.ts checks req.body.refresh_token and uses req.body.room_id as a path param without validating it — the refresh route does not verify room_id presence, so any caller with a valid refresh_token can use it against any room; the scout records this as a behavior to preserve as-is (per benchmark rule on source defects), not as a defect to fix during migration.",
+    "pages/rooms/[roomId].tsx and pages/rooms/index.tsx use query-parameter-driven state (roomId, roomId, client_token, refresh_token) — the Nuxt Vue SFC equivalents preserve query params via useRoute().query; the scout notes the query param casing must be preserved exactly because the accepted criteria say query params must continue to work",
+    "dial_out.ts sends video_room_context as a JSON string inside the JSON body (double-serialized); the Vue migration must not 'fix' this unless a regression test proves the original behavior, per the benchmark rule about source defects",
+    "pages/rooms/list.tsx and pages/rooms/index.tsx and pages/index.tsx are separate routes — Nuxt map them to pages/rooms/list.vue, pages/rooms/index.vue, pages/index.vue respectively, preserving nesting so deep links still work"
+  ],
+  "test_tooling": {
+    "current": "no test scripts, no test files, no vitest/jest config; CI has no test step",
+    "required_for_migration": [
+      "Vitest for unit tests",
+      "@nuxt/test-utils or Playwright for component and end-to-end smoke tests",
+      "a mock for @telnyx/video for both vitest unit tests and the end-to-end boundary (the mission brief requires a deterministic mock)"
+    ],
+    "ci_gate_to_add": "a 'test' job in .github/workflows/ci.yml that runs vitest (or the combined test script) and a browser smoke step"
+  },
+  "ci_matrix_current": [
+    "single Node 22.23.4 job",
+    "lint step: yarn lint (next lint --max-warnings=0)",
+    "build step: yarn build",
+    "no test step",
+    "no matrix over OS or Node version"
+  ],
+  "automation_static_removal_checks": [
+    "After the migration, a grep for 'from \"react\"', \"from 'react'\", 'from \"react-dom\"' must return zero hits in source (not node_modules)",
+    "Nested graph check: no top-level dependency in the final package.json should have 'react' or 'next' as a peer, direct dependency, or appear in a production bundle-output chunk; a yarn.lock diff against the baseline plus a grep on the Nuxt production build output (.output/) is sufficient",
+    "yarn.lock should contain no version entry for any of the removed react_runtime_to_remove or next_runtime_to_remove packages",
+    "the build output of the Nuxt app (e.g. .output/server/chunks/) must not contain a chunk named react or react-dom; a CI build-artifact grep gate is sufficient"
+  ],
+  "ordered_build_system_work_packages": [
+    {
+      "order": 1,
+      "name": "Framework swap: remove react/next, scaffold Nuxt + Vue",
+      "narrow_path_prefix_write_set": [
+        "package.json",
+        "nuxt.config.ts",
+        "tsconfig.json",
+        "next.config.js (deleted)",
+        ".babelrc (deleted)",
+        "app.vue (new)",
+        "server/plugin/ (new, for Nuxt server plugins)",
+        "public/ (manifest + icons stay; build output goes to .output/ which gitignore protects)"
+      ],
+      "boundary_note": "Do not touch lib/, hooks/, utils/, contexts/, components/ in this package — they move in later packages"
+    },
+    {
+      "order": 2,
+      "name": "API routes to Nitro",
+      "narrow_path_prefix_write_set": [
+        "server/api/rooms/index.get.ts",
+        "server/api/rooms/[roomId].get.ts",
+        "server/api/client_token.post.ts",
+        "server/api/refresh_client_token.post.ts",
+        "server/api/dial_out.post.ts",
+        "pages/api/ (all deleted)",
+        "server/utils/telnxClient.ts (new shared helper for Bearer header and request_id)"
+      ],
+      "credential_note": "TELNYX_API_KEY is only read inside server/ files; private runtimeConfig binding must be set in nuxt.config.ts in package 1, not here"
+    },
+    {
+      "order": 3,
+      "name": "State: provide/inject or Pinia store replacing TelnyxMeetContext + DebugContext",
+      "narrow_path_prefix_write_set": [
+        "stores/telnxMeet.ts (or composables/telnxMeet.ts)",
+        "stores/debug.ts (or composables/debug.ts)",
+        "contexts/ (all deleted)",
+        "hooks/ (updated imports only, no new files — the 2 hooks remain in hooks/)"
+      ],
+      "boundary_note": "The TelnyxMeetContext contract (lastRoomId, lastRoom, room, invite, shortName, etc.) must be preserved 1:1 in the replacement store shape — the scout records the contract that the teams of transient work will need"
+    },
+    {
+      "order": 4,
+      "name": "Component migration (React SFC -> Vue SFC) and styled-components removal",
+      "narrow_path_prefix_write_set": [
+        "components/**/*.vue (new)",
+        "components/**.tsx (all deleted)",
+        "styles/globals.css (preserved, possibly minimal edit to drop styled-components-dependent reset rules)"
+      ],
+      "boundary_note": "This is the largest surface area; the scout splits it out so a later parallel work can own it without colliding with the state or API packages"
+    },
+    {
+      "order": 5,
+      "name": "Pages migration and route URL preservation",
+      "narrow_path_prefix_write_set": [
+        "pages/index.vue (new from pages/index.tsx)",
+        "pages/rooms/index.vue (new from pages/rooms/index.tsx)",
+        "pages/rooms/list.vue (new from pages/rooms/list.tsx)",
+        "pages/rooms/[roomId].vue (new from pages/rooms/[roomId].tsx)",
+        "pages/404.vue (new from pages/404.tsx)",
+        "pages/_error.vue (new from pages/_error.tsx)",
+        "pages/_app.tsx (deleted — its error-dialog and ToastProvider duties absorbed into App-level composable or a toast store)",
+        "pages/_document.tsx (deleted — replaced by Nuxt's app.vue + nuxt.config.ts app.head meta)",
+        "pages/api/ (deleted in this package if not already deleted in package 2)"
+      ],
+      "boundary_note": "Query-param-driven pages (rooms/[roomId].tsx) must preserve client_token and refresh_token query param handling exactly"
+    },
+    {
+      "order": 6,
+      "name": "CI and test gates",
+      "narrow_path_prefix_write_set": [
+        ".github/workflows/ci.yml (add test step, keep lint + build, add browser smoke)",
+        "vitest.config.ts (new)",
+        "package.json scripts (add 'test', keep 'lint', add 'type-check' aliasing nuxt typecheck)"
+      ],
+      "boundary_note": "The refreshed ci.yml must still use yarn install --frozen-lockfile; keep the Node 22.23.4 pin unless the venue explicitly relaxes the upper <23 engines bound, which this scout does not assume"
+    }
+  ],
+  "verification": {
+    "json_valid": "this file parses as strict JSON",
+    "secrets_leaked": false,
+    "values_copied_from_env_sample": "none — variable names only, no resolved values",
+    "narrow_write_set_observed": true
+  }
+}
