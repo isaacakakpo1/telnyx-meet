@@ -39,10 +39,7 @@ export default tseslint.config(
       },
     },
   },
-  {
-    files: ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts', '**/*.vue'],
-    ...tseslint.configs.recommended,
-  },
+  ...tseslint.configs.recommended,
   ...vuePlugin.configs['flat/essential'],
   ...vuePlugin.configs['flat/recommended'],
   js.configs.recommended,
@@ -52,6 +49,7 @@ export default tseslint.config(
       globals: {
         ...globals.node,
         ...globals.browser,
+        defineNuxtConfig: 'readonly',
         definePageMeta: 'readonly',
         defineProps: 'readonly',
         defineEmits: 'readonly',
